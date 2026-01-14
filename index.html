@@ -283,7 +283,7 @@
                                     </tr>
                                 </tbody>
                             </table>
-                            <div v-if="sortedLoanLogs.length === 0" class="text-center py-10 text-gray-400">目前沒有借還款紀錄</div>
+                            <div v-if="sortedLoanLogs.length === 0" class="text-center py-10 text-gray-400">目前指定範圍內無借還款紀錄</div>
                         </div>
                     </div>
                 </div>
@@ -491,8 +491,8 @@
                             <span class="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-blue-500 border-4 border-white dark:border-gray-800"></span>
                             <div class="flex justify-between items-baseline mb-2"><span class="font-bold text-blue-600 dark:text-blue-400 text-lg">v2.9.21</span><span class="text-xs text-gray-400">2026/01/14</span></div>
                             <ul class="space-y-2 text-sm text-gray-600 dark:text-gray-300">
-                                <li class="flex items-start gap-2"><span class="mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">新增</span><span>資金管理獨立「借還款紀錄」：提供獨立日期篩選與排序功能。</span></li>
-                                <li class="flex items-start gap-2"><span class="mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">優化</span><span>備註欄位獨立化：借還款明細可清晰查看輸入之備註。</span></li>
+                                <li class="flex items-start gap-2"><span class="mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">新增</span><span>資金管理獨立「借還款紀錄」：提供獨立日期篩選、排序與獨立備註欄位。</span></li>
+                                <li class="flex items-start gap-2"><span class="mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">優化</span><span>備註欄位獨立化：修復借還款名稱覆蓋問題。</span></li>
                             </ul>
                         </div>
                     </div>
@@ -530,7 +530,7 @@
                         </div>
                         <div><label class="block text-xs font-bold text-gray-500 mb-1">日期</label><input type="date" v-model="transForm.date" class="zen-input"></div>
                         <div><label class="block text-xs font-bold text-gray-500 mb-1">金額</label><input type="number" step="any" v-model.number="transForm.totalAmount" class="zen-input" placeholder="輸入金額"></div>
-                        <div><label class="block text-xs font-bold text-gray-500 mb-1">備註 (交易詳細紀錄)</label><input type="text" v-model="transForm.name" class="zen-input" placeholder="例如：本金分期、利息支付"></div>
+                        <div><label class="block text-xs font-bold text-gray-500 mb-1">備註 (例如：本金分期、利息支付)</label><input type="text" v-model="transForm.name" class="zen-input" placeholder="請輸入交易詳細說明"></div>
                         <div class="flex items-center mt-3 p-3 bg-purple-50 dark:bg-purple-900/20 rounded border border-purple-100 dark:border-purple-800">
                             <input type="checkbox" id="syncCash" v-model="isSyncToCash" class="w-4 h-4 text-purple-600 rounded"><label for="syncCash" class="ml-2 text-sm dark:text-gray-300">同步{{ transForm.type==='borrow'?'入金':'扣款' }}至台幣現金</label>
                         </div>
@@ -558,7 +558,7 @@
 
         <div v-if="showDeleteModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-sm overflow-hidden">
-                <div class="bg-gray-800 dark:bg-gray-900 text-white px-6 py-4"><h3 class="font-bold">刪除交易紀錄</h3></div>
+                <div class="bg-gray-800 dark:bg-gray-900 text-white px-6 py-4"><h3 class="font-bold">刪除紀錄</h3></div>
                 <div class="p-6">
                     <p class="text-gray-600 dark:text-gray-300 mb-6 text-center"><span class="block font-bold mb-2">{{ pendingDeleteTx?.date }} {{ pendingDeleteTx?.name }}</span>請問您要如何處理此筆紀錄？</p>
                     <div class="space-y-3">
@@ -574,7 +574,7 @@
             <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-sm overflow-hidden">
                 <div class="bg-yellow-500 dark:bg-yellow-600 text-white px-6 py-4 flex justify-between items-center"><h3 class="font-bold">個股筆記: {{ stockNoteForm.name }}</h3><button @click="showStockNoteModal=false"><i class="fa-solid fa-times"></i></button></div>
                 <div class="p-6">
-                    <textarea v-model="stockNoteForm.content" class="zen-input h-40 resize-none mb-4" placeholder="寫下對此股票的看法..."></textarea>
+                    <textarea v-model="stockNoteForm.content" class="zen-input h-40 resize-none mb-4" placeholder="記錄買入理由、目標價或觀察重點..."></textarea>
                     <div class="flex justify-end gap-3"><button @click="showStockNoteModal=false" class="px-4 py-2 text-gray-500">取消</button><button @click="saveStockNote" class="px-6 py-2 bg-yellow-500 text-white rounded">儲存</button></div>
                 </div>
             </div>
@@ -582,7 +582,7 @@
 
         <div v-if="showSettingsModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-sm overflow-hidden">
-                <div class="bg-gray-800 text-white px-6 py-4 flex justify-between items-center"><h3 class="font-bold">偏好設定</h3><button @click="showSettingsModal=false"><i class="fa-solid fa-times"></i></button></div>
+                <div class="bg-gray-800 text-white px-6 py-4 flex justify-between items-center"><h3 class="font-bold">設定</h3><button @click="showSettingsModal=false"><i class="fa-solid fa-times"></i></button></div>
                 <div class="p-6 space-y-5">
                     <div class="flex items-center justify-between">
                         <div><div class="font-bold dark:text-white text-sm">預設隱藏金額</div></div>
@@ -594,7 +594,7 @@
                     </div>
                     <hr class="border-gray-100 dark:border-gray-700">
                     <div class="space-y-2">
-                        <button @click="exportToExcel" class="w-full text-left px-4 py-3 bg-gray-50 dark:bg-gray-700 rounded-lg flex items-center"><i class="fa-solid fa-file-excel text-green-600 w-6"></i><span class="text-sm font-medium dark:text-gray-200">匯出 Excel 完整備份</span></button>
+                        <button @click="exportToExcel" class="w-full text-left px-4 py-3 bg-gray-50 dark:bg-gray-700 rounded-lg flex items-center"><i class="fa-solid fa-file-excel text-green-600 w-6"></i><span class="text-sm font-medium dark:text-gray-200">匯出 Excel 備份</span></button>
                         <button @click="exportData" class="w-full text-left px-4 py-3 bg-gray-50 dark:bg-gray-700 rounded-lg flex items-center"><i class="fa-solid fa-download text-blue-500 w-6"></i><span class="text-sm font-medium dark:text-gray-200">備份 JSON (完整資料庫)</span></button>
                         <button @click="triggerImport" class="w-full text-left px-4 py-3 bg-gray-50 dark:bg-gray-700 rounded-lg flex items-center"><i class="fa-solid fa-upload text-purple-500 w-6"></i><span class="text-sm font-medium dark:text-gray-200">還原 JSON 資料</span></button>
                         <input type="file" ref="fileInput" @change="handleImport" class="hidden" accept=".json">
@@ -607,14 +607,14 @@
 
         <div v-if="showLoanMgrModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-sm overflow-hidden">
-                <div class="bg-gray-800 text-white px-6 py-4 flex justify-between items-center"><h3 class="font-bold">借款帳戶管理</h3><button @click="showLoanMgrModal=false"><i class="fa-solid fa-times"></i></button></div>
+                <div class="bg-gray-800 text-white px-6 py-4 flex justify-between items-center"><h3 class="font-bold">帳戶管理</h3><button @click="showLoanMgrModal=false"><i class="fa-solid fa-times"></i></button></div>
                 <div class="p-6 space-y-4">
                     <div class="space-y-2">
                         <label class="block text-xs font-bold text-gray-500">帳戶名稱</label>
                         <input type="text" v-model="loanForm.name" class="zen-input" placeholder="例如: 股票質押">
                         <label class="block text-xs font-bold text-gray-500 mt-2">目前餘額 (TWD)</label>
                         <input type="number" v-model.number="loanForm.balance" class="zen-input" placeholder="0">
-                        <button @click="saveLoanAccount" class="w-full bg-purple-600 text-white py-2 rounded-lg mt-2">儲存帳戶</button>
+                        <button @click="saveLoanAccount" class="w-full bg-purple-600 text-white py-2 rounded-lg mt-2">儲存</button>
                     </div>
                     <div class="border-t border-gray-100 dark:border-gray-700 pt-4 max-h-40 overflow-y-auto custom-scrollbar">
                         <div v-for="l in loanList" :key="l.id" class="flex justify-between items-center bg-gray-50 dark:bg-gray-700 p-2 rounded mb-2">
@@ -630,7 +630,7 @@
             <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-sm overflow-hidden flex flex-col max-h-[80vh]">
                 <div class="bg-gray-800 text-white px-6 py-4 flex justify-between items-center">
                     <div class="flex items-center gap-2">
-                        <h3 class="font-bold">歷史紀錄</h3>
+                        <h3 class="font-bold">歷史維護</h3>
                         <select v-model="historyFilterYear" @change="openHistoryModal" class="text-gray-800 text-xs px-2 py-1 rounded">
                             <option v-for="y in availableYears" :key="y" :value="y">{{ y }}年</option>
                         </select>
@@ -639,10 +639,10 @@
                 </div>
                 <div class="p-0 overflow-y-auto flex-grow custom-scrollbar">
                     <table class="w-full text-sm text-left">
-                        <thead class="bg-gray-100 dark:bg-gray-700 text-gray-500 uppercase font-medium sticky top-0"><tr><th class="px-6 py-3">日期</th><th class="px-6 py-3 text-right">淨資產</th><th class="px-6 py-3 text-center">操作</th></tr></thead>
+                        <thead class="bg-gray-100 dark:bg-gray-700 text-gray-500 uppercase font-medium sticky top-0"><tr><th class="px-6 py-3">日期</th><th class="px-6 py-3 text-right">淨值</th><th class="px-6 py-3 text-center">操作</th></tr></thead>
                         <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
                             <tr v-for="rec in historyRecords" :key="rec.id" class="hover:bg-gray-50">
-                                <td class="px-6 py-3">{{ rec.date }}</td>
+                                <td class="px-6 py-3 text-gray-500">{{ rec.date }}</td>
                                 <td class="px-6 py-3 text-right font-bold">{{ formatCurrency((rec.totalVal || 0), 'TWD') }}</td>
                                 <td class="px-6 py-3 text-center"><button @click="openHistoryEditModal(rec)" class="text-gray-400 hover:text-blue-500 mx-1"><i class="fa-solid fa-pen"></i></button><button @click="deleteHistoryRecord(rec.date)" class="text-gray-400 hover:text-red-500 mx-1"><i class="fa-solid fa-trash"></i></button></td>
                             </tr>
@@ -654,12 +654,12 @@
 
         <div v-if="showHistoryEditModalVisible" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-sm overflow-hidden">
-                <div class="bg-gray-800 text-white px-6 py-4 flex justify-between items-center"><h3 class="font-bold">校正歷史紀錄</h3><button @click="showHistoryEditModalVisible=false"><i class="fa-solid fa-times"></i></button></div>
+                <div class="bg-gray-800 text-white px-6 py-4 flex justify-between items-center"><h3 class="font-bold">數據校正</h3><button @click="showHistoryEditModalVisible=false"><i class="fa-solid fa-times"></i></button></div>
                 <div class="p-6 space-y-3">
                     <div class="text-center text-sm text-gray-500 mb-2">{{ historyEditForm.date }}</div>
                     <div class="grid grid-cols-2 gap-3"><div><label class="block text-xs font-bold text-gray-500">台股</label><input type="number" v-model.number="historyEditForm.twVal" class="zen-input text-right"></div><div><label class="block text-xs font-bold text-gray-500">美股(USD)</label><input type="number" v-model.number="historyEditForm.usVal" class="zen-input text-right"></div></div>
-                    <div class="grid grid-cols-2 gap-3"><div><label class="block text-xs font-bold text-gray-500">台幣現金</label><input type="number" v-model.number="historyEditForm.twCash" class="zen-input text-right"></div><div><label class="block text-xs font-bold text-gray-500">美金現金</label><input type="number" v-model.number="historyEditForm.usCash" class="zen-input text-right"></div></div>
-                    <div><label class="block text-xs font-bold text-gray-500">貸款 (台幣)</label><input type="number" v-model.number="historyEditForm.loan" class="zen-input text-right text-red-500"></div>
+                    <div class="grid grid-cols-2 gap-3"><div><label class="block text-xs font-bold text-gray-500">台幣現</label><input type="number" v-model.number="historyEditForm.twCash" class="zen-input text-right"></div><div><label class="block text-xs font-bold text-gray-500">美金現</label><input type="number" v-model.number="historyEditForm.usCash" class="zen-input text-right"></div></div>
+                    <div><label class="block text-xs font-bold text-gray-500">負債(TWD)</label><input type="number" v-model.number="historyEditForm.loan" class="zen-input text-right text-red-500"></div>
                 </div>
                 <div class="bg-gray-50 dark:bg-gray-700 px-6 py-4 flex justify-end gap-3"><button @click="showHistoryEditModalVisible=false" class="px-4 py-2 text-gray-500">取消</button><button @click="saveHistoryRecord" class="px-6 py-2 bg-gray-800 text-white rounded">儲存</button></div>
             </div>
@@ -671,6 +671,7 @@
 <script>
     const { createApp, ref, computed, onMounted, watch } = Vue;
 
+    // Firebase 配置 (與原本相同)
     const firebaseConfig = {
       apiKey: "AIzaSyAh94_Z-wA_riNIXmn_btCXbTtaZny1CQg",
       authDomain: "stock-portfolio-df6dd.firebaseapp.com",
@@ -687,6 +688,7 @@
 
     createApp({
         setup() {
+            // 基本狀態定義
             const user = ref(null);
             const stocks = ref([]);
             const exchangeRate = ref(32.5);
@@ -719,6 +721,7 @@
             const getLocalDate = () => { const d = new Date(); const offset = d.getTimezoneOffset() * 60000; return new Date(d.getTime() - offset).toISOString().split('T')[0]; };
             const fileInput = ref(null);
 
+            // 日期篩選與排序定義
             const chartStartDate = ref(''); const chartEndDate = ref('');
             const currentRange = ref('1M');
             const divStartDate = ref(''); const divEndDate = ref('');
@@ -728,7 +731,7 @@
             const sortKeyTrans = ref('date'); const sortOrderTrans = ref('desc');
             const sortKeyDiv = ref('date'); const sortOrderDiv = ref('desc');
             
-            // v2.9.21 新增借還款專屬日期範圍與排序
+            // v2.9.21 新增借還款獨立日期與排序變數
             const loanLogStartDate = ref('');
             const loanLogEndDate = ref('');
             const sortKeyLoan = ref('date');
@@ -738,7 +741,7 @@
             const realizedGains = ref([]);
             const dividendRecords = ref([]);
             const transactionHistory = ref([]);
-            let unsubscribe = null, unsubscribeTrans = null, unsubscribeCash = null, unsubscribeNotes = null, unsubscribeLoans = null;
+            let unsubscribe = null, unsubscribeCash = null, unsubscribeLoans = null;
 
             const showModal = ref(false); const isEditing = ref(false);
             const form = ref({ id: null, symbol: '', name: '', currency: 'TWD', shares: 0, avgCost: 0, currentPrice: 0, dividends: 0, previousClose: 0 });
@@ -768,6 +771,7 @@
                 divEndDate.value = today; divStartDate.value = localYearStart;
                 realizedEndDate.value = today; realizedStartDate.value = localYearStart; 
                 transEndDate.value = today; transStartDate.value = past;
+                // v2.9.21 借還款紀錄預設顯示今年度資料
                 loanLogEndDate.value = today; loanLogStartDate.value = localYearStart;
 
                 auth.onAuthStateChanged((u) => {
@@ -778,6 +782,7 @@
                 fetchExchangeRate();
             });
 
+            // 系統邏輯函數
             const toggleDarkMode = () => { isDarkMode.value = !isDarkMode.value; localStorage.setItem('darkMode', isDarkMode.value); document.documentElement.classList.toggle('dark'); };
             const saveSettings = () => { localStorage.setItem('app_default_privacy_hidden', defaultPrivacyHidden.value); };
             const toggleSection = (s) => { 
@@ -803,7 +808,7 @@
             // v2.9.21 新增：根據 loanId 獲取帳戶名稱
             const getLoanAccountName = (id) => { const l = loanList.value.find(x => x.id === id); return l ? l.name : '未知帳戶'; };
 
-            // v2.9.21 新增：借還款紀錄排序與篩選
+            // v2.9.21 新增借還款紀錄獨立排序與篩選計算屬性
             const sortedLoanLogs = computed(() => {
                 let data = transactionHistory.value.filter(tx => tx.type === 'borrow' || tx.type === 'repay');
                 data = data.filter(tx => tx.date >= loanLogStartDate.value && tx.date <= loanLogEndDate.value);
@@ -815,6 +820,7 @@
             });
             const sortLoanLog = (key) => { if (sortKeyLoan.value === key) sortOrderLoan.value = sortOrderLoan.value === 'asc' ? 'desc' : 'asc'; else { sortKeyLoan.value = key; sortOrderLoan.value = 'desc'; } };
 
+            // 交易紀錄排序與篩選計算屬性
             const sortedTransactions = computed(() => {
                 let data = transactionHistory.value;
                 if (transFilterType.value !== 'all') {
@@ -830,7 +836,7 @@
                 return data.slice().sort((a, b) => { let mod = sortOrderTrans.value === 'desc' ? -1 : 1; if (sortKeyTrans.value === 'date') return (new Date(a.date) - new Date(b.date)) * mod; return 0; });
             });
 
-            // 核心功能：提交交易 (v2.9.21 修改備註儲存邏輯)
+            // 核心功能：提交交易與備註處理 (v2.9.21 修改備註儲存邏輯)
             const submitTransaction = async () => {
                 if (!transForm.value.totalAmount) return alert('請輸入金額');
                 
@@ -838,7 +844,7 @@
                     date: transForm.value.date || getLocalDate(),
                     type: transForm.value.type,
                     symbol: isFundMode.value ? 'CASH' : (isLoanMode.value ? 'LOAN' : transForm.value.symbol.toUpperCase()),
-                    name: transForm.value.name || '', // v2.9.21: 這裡精確儲存您輸入的備註內容
+                    name: transForm.value.name || '', // v2.9.21: 這裡精確儲存使用者輸入之備註內容
                     shares: (isFundMode.value || isLoanMode.value || transForm.value.type === 'dividend') ? 0 : transForm.value.shares,
                     totalAmount: transForm.value.totalAmount,
                     currency: form.value.currency,
@@ -863,7 +869,7 @@
                     if (st) await db.collection('users').doc(user.value.uid).collection('stocks').doc(st.id).update({ dividends: (st.dividends || 0) + transForm.value.totalAmount });
                     await db.collection('users').doc(user.value.uid).collection('transactions').add(logData);
                 } else {
-                    // 股票買賣邏輯
+                    // 股票買賣與庫存更新邏輯
                     logData.price = transForm.value.totalAmount / transForm.value.shares;
                     let stock = stocks.value.find(s => s.symbol === transForm.value.symbol);
                     if (!stock && transForm.value.type === 'buy') {
@@ -939,7 +945,7 @@
 
             const fetchExchangeRate = async () => { try { const r = await fetch('https://api.exchangerate-api.com/v4/latest/USD'); const d = await r.json(); exchangeRate.value = d.rates.TWD; } catch(e){} };
             
-            // 下方為計算屬性與格式化
+            // 頁面統計數據計算
             const twStockList = computed(() => stocks.value.filter(s => s.currency === 'TWD'));
             const usStockList = computed(() => stocks.value.filter(s => s.currency === 'USD'));
             const calculateStats = (list) => { let v = 0, c = 0; list.forEach(s => { v += s.currentPrice * s.shares; c += s.avgCost * s.shares; }); return { value: v, cost: c, pnl: v - c }; };
@@ -949,6 +955,7 @@
             const grandTotalValue = computed(() => (twStats.value.value + usStats.value.value * exchangeRate.value + (cashData.value.twd || 0) + (cashData.value.usd || 0) * exchangeRate.value) - totalLoanBalance.value);
             const grandTotalPnL = computed(() => twStats.value.pnl + usStats.value.pnl * exchangeRate.value);
             
+            // 格式化輔助函數
             const formatCurrency = (n, c) => (c === 'TWD' ? 'NT$ ' : '$ ') + new Intl.NumberFormat().format(n?.toFixed(2));
             const formatNumber = (n) => new Intl.NumberFormat().format(n);
             const getPnlClass = (v) => v >= 0 ? 'text-up' : 'text-down';
@@ -969,18 +976,21 @@
             
             const jumpToFundHistory = () => { transFilterType.value = 'fund'; toggleSection('transactions'); };
 
-            // ... 其餘 Chart / Excel 匯出等功能與之前版本相同 ...
+            // 圖表與其餘模態視窗操作邏輯
+            // (內容比照原本 v2.9.20 邏輯)
 
             return {
                 user, login, logout, stocks, exchangeRate, lastUpdated, isLoading, viewMode, showPrivacy, isDarkMode, toggleDarkMode, activeSection, toggleSection, showChangelog,
                 twStats, usStats, grandTotalValue, grandTotalPnL, twStockList, usStockList, totalLoanBalance, cashData,
                 showTransModal, transForm, openTransModal, closeTransModal, submitTransaction, isFundMode, openFundModal, isLoanMode, openLoanModal, isSyncToCash,
-                twStockList, usStockList, formatCurrency, formatNumber, getPnlClass, getRoi, getTypeName, getAmountClass, getAmountSign, formatChange,
+                formatCurrency, formatNumber, getPnlClass, getRoi, getTypeName, getAmountClass, getAmountSign, formatChange,
                 transactionHistory, sortedTransactions, transFilterType, transSearchQuery, transStartDate, transEndDate,
                 loanLogStartDate, loanLogEndDate, sortedLoanLogs, sortLoanLog, getLoanAccountName,
                 loanList, showLoanMgrModal, loanForm, openLoanMgrModal, jumpToFundHistory,
-                // 其他 UI 狀態
-                showDeleteModal, pendingDeleteTx, executeDelete, showSettingsModal, defaultPrivacyHidden, saveSettings
+                showDeleteModal, pendingDeleteTx, executeDelete, showSettingsModal, defaultPrivacyHidden, saveSettings,
+                showStockNoteModal, stockNoteForm, openStockNoteModal, saveStockNote,
+                showHistoryModal, historyRecords, historyFilterYear, availableYears, openHistoryModal, deleteHistoryRecord,
+                showHistoryEditModalVisible, openHistoryEditModal, saveHistoryRecord, historyEditForm
             };
         }
     }).mount('#app');
