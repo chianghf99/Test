@@ -59,6 +59,13 @@
         .note-card { border-left: 4px solid #3b82f6; }
         .dark .note-card { border-left-color: #60a5fa; }
         
+        .filter-btn { padding: 4px 12px; border-radius: 99px; border: 1px solid #e5e7eb; font-size: 0.75rem; cursor: pointer; transition: all 0.2s; user-select: none; }
+        .dark .filter-btn { border-color: #4b5563; color: #d1d5db; }
+        .filter-btn:hover { background-color: #f3f4f6; }
+        .dark .filter-btn:hover { background-color: #374151; }
+        .filter-btn.active { background-color: #1f2937; color: white; border-color: #1f2937; }
+        .dark .filter-btn.active { background-color: #e5e7eb; color: #111827; border-color: #e5e7eb; }
+
         .range-btn {
             font-size: 0.75rem;
             padding: 2px 8px;
@@ -93,7 +100,7 @@
     <div v-if="!user" class="flex-grow flex flex-col items-center justify-center p-4">
         <div class="zen-card p-8 max-w-sm w-full text-center space-y-6">
             <div class="bg-gray-800 text-white w-16 h-16 rounded-full flex items-center justify-center mx-auto text-2xl"><i class="fa-solid fa-chart-line"></i></div>
-            <div><h1 class="text-2xl font-bold dark:text-white">資產紀錄帳本 v3.1.0</h1><p class="text-gray-500 dark:text-gray-400 text-sm mt-2">v3.1.0 個股戰情室版</p></div>
+            <div><h1 class="text-2xl font-bold dark:text-white">資產紀錄帳本 v3.1.0</h1><p class="text-gray-500 dark:text-gray-400 text-sm mt-2">個股戰情室版</p></div>
             <button @click="login" class="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 font-medium py-2.5 rounded-lg flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-600 transition shadow-sm">
                 <img src="https://www.svgrepo.com/show/475656/google-color.svg" class="w-5 h-5 mr-3" alt="Google">使用 Google 帳號登入
             </button>
@@ -115,7 +122,7 @@
                         <img :src="user.photoURL" class="w-8 h-8 rounded-full border border-gray-200 dark:border-gray-600">
                         <span class="hidden md:inline text-sm font-medium">{{ user.displayName }}</span>
                     </div>
-                    <button @click="openQueryModal" class="w-9 h-9 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition flex items-center justify-center" title="查詢個股損益"><i class="fa-solid fa-magnifying-glass"></i></button>
+                    <button @click="openQueryModal" class="w-9 h-9 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition flex items-center justify-center" title="查詢個股"><i class="fa-solid fa-magnifying-glass"></i></button>
                     <button @click="showSettingsModal=true" class="w-9 h-9 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition flex items-center justify-center" title="設定"><i class="fa-solid fa-gear"></i></button>
                 </div>
             </div>
