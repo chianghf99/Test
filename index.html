@@ -594,8 +594,10 @@
             const sortKeyDiv = ref('date'); const sortOrderDiv = ref('desc');
             
             let chartInstance = null, pieTwInstance = null, pieUsInstance = null;
-            const realizedGains = ref([]);
-            const realizedSearchQuery = ref('');
+            
+            // --- [修正重點] 已實現損益：變數定義 (必須放在 computed 之前) ---
+            const realizedGains = ref([]); // 原始資料
+            const realizedSearchQuery = ref(''); // 搜尋字串
             const sortKeyRealized = ref('date');
             const sortOrderRealized = ref('desc');
 
@@ -845,8 +847,7 @@
             const grandTotalValue = computed(() => grandTotalAssets.value - totalLoanBalance.value);
             const grandTotalPnL = computed(() => twStats.value.pnl + (usStats.value.pnl * exchangeRate.value));
             const realizedTotalTw = computed(() => sortedRealizedGains.value.filter(r => r.currency === 'TWD').reduce((acc, cur) => acc + cur.pnl, 0));
-            const realizedTotalUs = computed(() => sortedRealizedGains.value.filter(r => r.currency === 'USD').reduce((acc, cur) => acc + cur.pnl, 0));
-            const dividendYearlyTw = computed(() => dividendRecords.value.filter(r => r.currency === 'TWD' && r.date.startsWith(new Date().getFullYear().toString())).reduce((acc, cur) => acc + cur.amount, 0));
+            const realizedTotalUs = computed(() => sortedRealizedGains.value.filter(r => r.currency === 'USD').reduce((acc, cur) => acc + cur.pnl, 0));            const dividendYearlyTw = computed(() => dividendRecords.value.filter(r => r.currency === 'TWD' && r.date.startsWith(new Date().getFullYear().toString())).reduce((acc, cur) => acc + cur.amount, 0));
             const dividendYearlyUs = computed(() => dividendRecords.value.filter(r => r.currency === 'USD' && r.date.startsWith(new Date().getFullYear().toString())).reduce((acc, cur) => acc + cur.amount, 0));
             const dividendRangeTw = computed(() => dividendRecords.value.filter(r => r.currency === 'TWD').reduce((acc, cur) => acc + cur.amount, 0));
             const dividendRangeUs = computed(() => dividendRecords.value.filter(r => r.currency === 'USD').reduce((acc, cur) => acc + cur.amount, 0));
@@ -921,5 +922,6 @@
 
 </body>
 </html>
+
 
 
