@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>我的投資組合 | Portfolio v3.0.0</title>
+    <title>我的投資組合 | Portfolio v3.1.0</title>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>tailwind.config = { darkMode: 'class' }</script>
@@ -93,7 +93,7 @@
     <div v-if="!user" class="flex-grow flex flex-col items-center justify-center p-4">
         <div class="zen-card p-8 max-w-sm w-full text-center space-y-6">
             <div class="bg-gray-800 text-white w-16 h-16 rounded-full flex items-center justify-center mx-auto text-2xl"><i class="fa-solid fa-chart-line"></i></div>
-            <div><h1 class="text-2xl font-bold dark:text-white">資產紀錄帳本 v3.0.0</h1><p class="text-gray-500 dark:text-gray-400 text-sm mt-2">v3.0.0 穩定版 (借還款備註修復)</p></div>
+            <div><h1 class="text-2xl font-bold dark:text-white">資產紀錄帳本 v3.1.0</h1><p class="text-gray-500 dark:text-gray-400 text-sm mt-2">v3.1.0 (新增損益篩選與分頁)</p></div>
             <button @click="login" class="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 font-medium py-2.5 rounded-lg flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-600 transition shadow-sm">
                 <img src="https://www.svgrepo.com/show/475656/google-color.svg" class="w-5 h-5 mr-3" alt="Google">使用 Google 帳號登入
             </button>
@@ -107,7 +107,7 @@
                     <a href="https://chianghf99.github.io/my-wallet/" class="text-gray-400 hover:text-gray-600 dark:hover:text-white transition"><i class="fa-solid fa-home"></i></a>
                     <h1 class="text-lg sm:text-xl font-bold tracking-wide flex items-center gap-2">
                         <span class="hidden sm:inline">我的資產帳本</span>
-                        <span @click="showChangelog=true" class="cursor-pointer bg-gray-100 dark:bg-gray-700 text-xs px-2 py-0.5 rounded text-gray-500 hover:bg-gray-200 transition">v3.0.0</span>
+                        <span @click="showChangelog=true" class="cursor-pointer bg-gray-100 dark:bg-gray-700 text-xs px-2 py-0.5 rounded text-gray-500 hover:bg-gray-200 transition">v3.1.0</span>
                     </h1>
                 </div>
                 <div class="flex items-center gap-3">
@@ -396,7 +396,13 @@
                             <div class="text-lg font-bold" :class="getPnlClass(realizedTotalUs)">{{ formatCurrency(realizedTotalUs, 'USD') }}</div>
                         </div>
                     </div>
-
+                    <div class="flex gap-1.5 mb-3 overflow-x-auto pb-1">
+                        <button @click="setRealizedRange('YTD')" class="range-btn" :class="{'active-range': realizedRange==='YTD'}">今年</button>
+                        <button @click="setRealizedRange('LAST_YEAR')" class="range-btn" :class="{'active-range': realizedRange==='LAST_YEAR'}">去年</button>
+                        <button @click="setRealizedRange('3M')" class="range-btn" :class="{'active-range': realizedRange==='3M'}">近3月</button>
+                        <button @click="setRealizedRange('ALL')" class="range-btn" :class="{'active-range': realizedRange==='ALL'}">全部</button>
+                    </div>
+                                        
                     <div class="flex flex-wrap gap-3 items-end mb-4 pb-4 border-b border-gray-100 dark:border-gray-700">
                         <div>
                             <label class="block text-xs font-bold text-gray-500 mb-1">搜尋代號/名稱</label>
@@ -418,7 +424,7 @@
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
-                                <tr v-for="rec in sortedRealizedGains" :key="rec.id" class="hover:bg-gray-50 dark:hover:bg-gray-800">
+                                <tr v-for="rec in paginatedRealizedGains" :key="rec.id" class="hover:bg-gray-50 dark:hover:bg-gray-800">
                                     <td class="px-4 py-3">{{ rec.date }}</td>
                                     <td class="px-4 py-3 font-bold">{{ rec.name || rec.symbol }}</td>
                                     <td class="px-4 py-3 text-right font-bold" :class="getPnlClass(rec.pnl)">{{ formatCurrency(rec.pnl, rec.currency) }}</td>
@@ -428,6 +434,20 @@
                                 </tr>
                             </tbody>
                         </table>
+                        <div v-if="sortedRealizedGains.length > 0" class="flex justify-between items-center mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
+                        <div class="text-xs text-gray-500">
+                            顯示 {{ (currentPage - 1) * itemsPerPage + 1 }} - {{ Math.min(currentPage * itemsPerPage, sortedRealizedGains.length) }} 筆 (共 {{ sortedRealizedGains.length }} 筆)
+                        </div>
+                        <div class="flex gap-2">
+                            <button @click="changePage(currentPage - 1)" :disabled="currentPage === 1" class="px-3 py-1 rounded border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm">
+                                <i class="fa-solid fa-chevron-left"></i>
+                            </button>
+                            <span class="px-2 py-1 text-sm font-medium">{{ currentPage }} / {{ totalRealizedPages }}</span>
+                            <button @click="changePage(currentPage + 1)" :disabled="currentPage === totalRealizedPages" class="px-3 py-1 rounded border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm">
+                                <i class="fa-solid fa-chevron-right"></i>
+                            </button>
+                        </div>
+                    </div>
                         <div v-if="sortedRealizedGains.length === 0" class="text-center py-6 text-gray-400">無符合紀錄</div>
                     </div>
                 </div>
@@ -458,6 +478,10 @@
                             <span class="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-blue-500 border-4 border-white dark:border-gray-800"></span>
                             <div class="flex justify-between items-baseline mb-2"><span class="font-bold text-blue-600 dark:text-blue-400 text-lg">v3.0.0</span><span class="text-xs text-gray-400">2026/01/14</span></div>
                             <ul class="space-y-2 text-sm text-gray-600 dark:text-gray-300">
+                                <li class="flex items-start gap-2">
+                                    <span class="mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">v3.1.0</span>
+                                    <span>新增已實現損益的「分頁功能」與「快速日期篩選 (今年/去年/全部)」。</span>
+                                </li>
                                 <li class="flex items-start gap-2"><span class="mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">新增</span><span>借還款備註修復：現在可以正確顯示借款/還款時填寫的備註資訊 (顯示在交易名稱後方)。</span></li>
                                 <li class="flex items-start gap-2"><span class="mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">優化</span><span>系統穩定性回歸：以 v2.9.20 為核心基底，確保功能穩定不崩潰。</span></li>
                             </ul>
@@ -631,6 +655,57 @@
                 });
                 return data;
             });
+            // --- [v3.1.0 新增] 已實現損益的分頁與日期篩選 ---
+            const realizedRange = ref('YTD'); // 預設選中今年
+            const currentPage = ref(1);
+            const itemsPerPage = ref(10); // 每頁顯示 10 筆
+
+            // 1. 分頁後的資料 (給表格顯示用)
+            const paginatedRealizedGains = computed(() => {
+                const start = (currentPage.value - 1) * itemsPerPage.value;
+                return sortedRealizedGains.value.slice(start, start + itemsPerPage.value);
+            });
+
+            // 2. 總頁數計算
+            const totalRealizedPages = computed(() => {
+                return Math.ceil(sortedRealizedGains.value.length / itemsPerPage.value) || 1;
+            });
+
+            // 3. 換頁函式
+            const changePage = (page) => {
+                if (page >= 1 && page <= totalRealizedPages.value) {
+                    currentPage.value = page;
+                }
+            };
+
+            // 4. 監聽搜尋關鍵字：當搜尋時，自動跳回第 1 頁
+            watch(realizedSearchQuery, () => { currentPage.value = 1; });
+
+            // 5. 快速日期範圍設定
+            const setRealizedRange = (range) => {
+                realizedRange.value = range;
+                const today = getLocalDate();
+                const y = new Date().getFullYear();
+                
+                if (range === 'YTD') { // 今年
+                    realizedStartDate.value = `${y}-01-01`;
+                    realizedEndDate.value = today;
+                } else if (range === 'LAST_YEAR') { // 去年
+                    realizedStartDate.value = `${y-1}-01-01`;
+                    realizedEndDate.value = `${y-1}-12-31`;
+                } else if (range === '3M') { // 近3月
+                    const d = new Date(); d.setMonth(d.getMonth() - 3);
+                    realizedStartDate.value = d.toISOString().split('T')[0];
+                    realizedEndDate.value = today;
+                } else if (range === 'ALL') { // 全部
+                    realizedStartDate.value = '2020-01-01';
+                    realizedEndDate.value = today;
+                }
+                
+                fetchRealizedGains(); // 設定完日期後自動查詢
+                currentPage.value = 1; // 重設回第 1 頁
+            };
+            // --- [v3.1.0 結束] ---
             const dividendRecords = ref([]);
             const transactionHistory = ref([]);
             let unsubscribe = null, unsubscribeTrans = null, unsubscribeCash = null, unsubscribeNotes = null, unsubscribeLoans = null;
@@ -898,7 +973,8 @@
                 transFilterType, transSearchQuery, jumpToFundHistory,
                 showHistoryModal, historyRecords, openHistoryModal, deleteHistoryRecord,
                 notes, openNoteModal, closeNoteModal, saveNote, deleteNote, showNoteModalVisible, noteForm,
-                realizedSearchQuery, sortRealized, sortedRealizedGains, realizedGains,
+                realizedSearchQuery, sortRealized, sortedRealizedGains, realizedGains, 
+                realizedRange, setRealizedRange, currentPage, itemsPerPage, paginatedRealizedGains, totalRealizedPages, changePage,
                 // v2.9.2
                 showDeleteModal, pendingDeleteTx, executeDelete,
                 // v2.9.4
@@ -922,6 +998,7 @@
 
 </body>
 </html>
+
 
 
 
