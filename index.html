@@ -228,32 +228,37 @@
                              <button @click="openFundModal()" class="bg-gray-800 text-white px-3 py-1 text-sm rounded hover:bg-gray-700 transition"><i class="fa-solid fa-money-bill-transfer mr-1"></i>入金/出金</button>
                         </div>
                     </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                        <div class="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-900/30 text-center">
-                            <div class="text-xs text-blue-600 dark:text-blue-400 mb-1">台幣餘額 (TWD)</div>
-                            <div class="text-2xl font-bold text-blue-700 dark:text-blue-300"><span v-if="showPrivacy">{{ formatCurrency(cashData.twd, 'TWD') }}</span><span v-else>****</span></div>
-                        </div>
-                        <div class="bg-green-50 dark:bg-green-900/20 p-4 rounded-xl border border-green-100 dark:border-green-900/30 text-center">
-                            <div class="text-xs text-green-600 dark:text-green-400 mb-1">美金餘額 (USD)</div>
-                            <div class="text-2xl font-bold text-green-700 dark:text-green-300"><span v-if="showPrivacy">{{ formatCurrency(cashData.usd, 'USD') }}</span><span v-else>****</span></div>
-                        </div>
-                        <div class="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-xl border border-purple-100 dark:border-purple-900/30 relative">
-                            <div class="flex justify-between items-start mb-2">
-                                <div class="text-xs text-purple-600 dark:text-purple-400">總借款 (TWD)</div>
-                                <div class="flex gap-1">
-                                    <button @click="openLoanMgrModal" class="text-xs bg-purple-100 dark:bg-purple-800 text-purple-600 dark:text-purple-300 px-2 py-0.5 rounded hover:bg-purple-200"><i class="fa-solid fa-gear"></i> 管理</button>
-                                    <button @click="openLoanModal()" class="text-xs bg-purple-600 text-white px-2 py-0.5 rounded hover:bg-purple-700"><i class="fa-solid fa-pen-to-square"></i> 記帳</button>
-                                </div>
-                            </div>
-                            <div class="text-2xl font-bold text-purple-700 dark:text-purple-300 text-center mb-2"><span v-if="showPrivacy">{{ formatCurrency(totalLoanBalance, 'TWD') }}</span><span v-else>****</span></div>
-                            <div class="space-y-1 max-h-24 overflow-y-auto custom-scrollbar">
-                                <div v-for="l in loanList" :key="l.id" class="flex justify-between text-xs border-b border-purple-100 dark:border-purple-800 pb-1 last:border-0">
-                                    <span class="text-purple-800 dark:text-purple-200">{{ l.name }}</span>
-                                    <span class="font-bold text-purple-700 dark:text-purple-300"><span v-if="showPrivacy">{{ formatCurrency(l.balance, 'TWD') }}</span><span v-else>****</span></span>
-                                </div>
-                                <div v-if="loanList.length===0" class="text-center text-xs text-purple-300">無借款</div>
-                            </div>
-                        </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+                        <div class="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-900/30 text-center"><div class="text-xs text-blue-600 dark:text-blue-400 mb-1">台幣餘額 (TWD)</div><div class="text-2xl font-bold text-blue-700 dark:text-blue-300"><span v-if="showPrivacy">{{ formatCurrency(cashData.twd, 'TWD') }}</span><span v-else>****</span></div></div>
+                        <div class="bg-green-50 dark:bg-green-900/20 p-4 rounded-xl border border-green-100 dark:border-green-900/30 text-center"><div class="text-xs text-green-600 dark:text-green-400 mb-1">美金餘額 (USD)</div><div class="text-2xl font-bold text-green-700 dark:text-green-300"><span v-if="showPrivacy">{{ formatCurrency(cashData.usd, 'USD') }}</span><span v-else>****</span></div></div>
+                        <div class="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-xl border border-purple-100 dark:border-purple-900/30 relative"><div class="flex justify-between items-start mb-2"><div class="text-xs text-purple-600 dark:text-purple-400">總借款 (TWD)</div><div class="flex gap-1"><button @click="openLoanMgrModal" class="text-xs bg-purple-100 dark:bg-purple-800 text-purple-600 dark:text-purple-300 px-2 py-0.5 rounded hover:bg-purple-200"><i class="fa-solid fa-gear"></i> 管理</button><button @click="openLoanModal()" class="text-xs bg-purple-600 text-white px-2 py-0.5 rounded hover:bg-purple-700"><i class="fa-solid fa-pen-to-square"></i> 記帳</button></div></div><div class="text-2xl font-bold text-purple-700 dark:text-purple-300 text-center mb-2"><span v-if="showPrivacy">{{ formatCurrency(totalLoanBalance, 'TWD') }}</span><span v-else>****</span></div><div class="space-y-1 max-h-24 overflow-y-auto custom-scrollbar"><div v-for="l in loanList" :key="l.id" class="flex justify-between text-xs border-b border-purple-100 dark:border-purple-800 pb-1 last:border-0"><span class="text-purple-800 dark:text-purple-200">{{ l.name }}</span><span class="font-bold text-purple-700 dark:text-purple-300"><span v-if="showPrivacy">{{ formatCurrency(l.balance, 'TWD') }}</span><span v-else>****</span></span></div><div v-if="loanList.length===0" class="text-center text-xs text-purple-300">無借款</div></div></div>
+                    </div>
+                    
+                    <h4 class="font-bold text-sm mb-3 dark:text-gray-300 border-b border-gray-100 dark:border-gray-700 pb-2">資金流水紀錄 (Fund History)</h4>
+                    <div class="overflow-x-auto max-h-[400px] overflow-y-auto custom-scrollbar">
+                        <table class="w-full text-sm text-left">
+                            <thead class="bg-gray-50 dark:bg-gray-800 text-gray-500 uppercase font-medium sticky top-0">
+                                <tr>
+                                    <th class="px-4 py-2">日期</th>
+                                    <th class="px-4 py-2">類別</th>
+                                    <th class="px-4 py-2">帳戶/對象</th>
+                                    <th class="px-4 py-2">備註</th>
+                                    <th class="px-4 py-2 text-right">金額</th>
+                                    <th class="px-4 py-2 text-center">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+                                <tr v-for="tx in sortedFundTransactions" :key="tx.id" class="hover:bg-gray-50 dark:hover:bg-gray-800">
+                                    <td class="px-4 py-3 whitespace-nowrap text-gray-500">{{ tx.date }}</td>
+                                    <td class="px-4 py-3"><span class="tag" :class="{'tag-fund': tx.type==='deposit'||tx.type==='withdraw', 'tag-loan': tx.type==='borrow'||tx.type==='repay'}">{{ getTypeName(tx.type) }}</span></td>
+                                    <td class="px-4 py-3 font-bold dark:text-gray-200">{{ tx.name }}</td>
+                                    <td class="px-4 py-3 text-gray-500 dark:text-gray-400 text-xs">{{ tx.memo || '-' }}</td>
+                                    <td class="px-4 py-3 text-right font-bold" :class="getAmountClass(tx)">{{ getAmountSign(tx) }}{{ formatCurrency(tx.totalAmount, tx.currency) }}</td>
+                                    <td class="px-4 py-3 text-center"><button @click="deleteTransaction(tx)" class="text-gray-400 hover:text-red-500"><i class="fa-solid fa-trash-can"></i></button></td>
+                                </tr>
+                                <tr v-if="sortedFundTransactions.length === 0"><td colspan="6" class="px-4 py-6 text-center text-gray-400">尚無資金紀錄</td></tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </transition>
@@ -537,12 +542,6 @@
             const sortKeyTrans = ref('date'); const sortOrderTrans = ref('desc');
             const sortKeyDiv = ref('date'); const sortOrderDiv = ref('desc');
             
-            // ✅ v3.0.0 Base (Fund Filters from v3.0.0)
-            const selectedFundTypes = ref(['deposit','withdraw','borrow','repay']);
-            const sortKeyFund = ref('date');
-            const sortOrderFund = ref('desc');
-            const selectedTradeTypes = ref(['buy','sell','dividend']);
-            
             let chartInstance = null, pieTwInstance = null, pieUsInstance = null;
             const realizedGains = ref([]);
             const dividendRecords = ref([]);
@@ -762,3 +761,5 @@
 
 </body>
 </html>
+
+}
