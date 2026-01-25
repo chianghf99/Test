@@ -666,7 +666,7 @@
             const activeSection = ref('');
             const showChangelog = ref(false);
             
-            // XIRR 變數 (v3.3.0)
+            // XIRR 變數
             const xirrValue = ref(0.0);
             const xirrStartDate = ref('-');
 
@@ -827,6 +827,7 @@
 
             const sortedDividends = computed(() => { return dividendRecords.value.slice().sort((a, b) => { let modifier = sortOrderDiv.value === 'desc' ? -1 : 1; if (sortKeyDiv.value === 'date') return (new Date(a.date) - new Date(b.date)) * modifier; if (sortKeyDiv.value === 'symbol') return (a.name || a.symbol).localeCompare(b.name || b.symbol) * modifier; if (sortKeyDiv.value === 'amount') return (a.amount - b.amount) * modifier; return 0; }); });
             
+            // 監聽總資產變化以觸發 XIRR 計算
             watch(grandTotalValue, () => {
                 if (grandTotalValue.value > 0) setTimeout(computeSystemXirr, 2000); 
             });
@@ -1051,10 +1052,28 @@
                 showStockNoteModal.value = false;
             };
 
-            // v3.3.0 XIRR 核心邏輯
+            // v3.3.0 XIRR 核心邏輯 (含快速通道修正)
             const calcXIRR = (transactions, guess = 0.1) => {
                 if (transactions.length < 2) return 0;
                 transactions.sort((a, b) => a.dateObj - b.dateObj);
+                
+                // 1. 快速通道：如果只有「起點」跟「終點」兩筆資料，直接用公式解
+                // 公式：(終值 / 初值)^(365 / 天數) - 1
+                if (transactions.length === 2) {
+                    const start = transactions[0];
+                    const end = transactions[1];
+                    // 初值必須是負數 (投入)，終值是正數 (現值)
+                    if (start.amount >= 0 || end.amount <= 0) return 0; // 資料異常
+                    
+                    const days = (end.dateObj - start.dateObj) / (1000 * 60 * 60 * 24);
+                    if (days <= 0) return 0;
+                    
+                    const ratio = end.amount / Math.abs(start.amount);
+                    const rate = Math.pow(ratio, 365 / days) - 1;
+                    return rate * 100;
+                }
+
+                // 2. 複雜情況：使用牛頓法 (原本的邏輯)
                 const hasPos = transactions.some(t => t.amount > 0);
                 const hasNeg = transactions.some(t => t.amount < 0);
                 if (!hasPos || !hasNeg) return 0;
@@ -1082,30 +1101,28 @@
                 return rate * 100;
             };
 
-            // v3.3.0 修正版：修復重複扣除 Loan 問題，並排除首日交易
             const computeSystemXirr = async () => {
                 if (!user.value || grandTotalValue.value === 0) return;
                 
-                // 1. 抓取最早的歷史紀錄 (作為初始本金)
+                // 1. 抓取最早的歷史紀錄
                 const historySnap = await db.collection('users').doc(user.value.uid).collection('history').orderBy('date', 'asc').limit(1).get();
                 if (historySnap.empty) { xirrValue.value = 0; xirrStartDate.value = '-'; return; }
                 
                 const startData = historySnap.docs[0].data();
                 const startDate = startData.date;
                 
-                // [修正] 直接使用 totalVal (已是淨資產)，不要再減 loan
-                const startNetWorth = startData.totalVal || 0; 
+                // [修正] 確保數值正確轉型，避免資料庫欄位缺失導致 NaN
+                const startNetWorth = Number(startData.totalVal) || 0; 
                 xirrStartDate.value = startDate;
 
                 // 2. 抓取這段期間內的所有現金流 (入金/出金)
-                // [修正] 使用 '>' (大於) 排除起點當天的交易，避免重複計算
                 const txSnap = await db.collection('users').doc(user.value.uid).collection('transactions')
                     .where('date', '>', startDate)
                     .where('type', 'in', ['deposit', 'withdraw'])
                     .get();
 
                 const flows = [];
-                // 初始投入 (視為負現金流)
+                // 初始投入 (負值)
                 flows.push({ amount: -Math.abs(startNetWorth), dateObj: new Date(startDate) });
 
                 // 中途資金進出
@@ -1119,7 +1136,7 @@
                     }
                 });
 
-                // 3. 終值 (今天的淨資產，視為正現金流)
+                // 3. 終值 (今天的淨資產，正值)
                 flows.push({ amount: grandTotalValue.value, dateObj: new Date() });
 
                 // 4. 計算
@@ -1188,6 +1205,7 @@
 
 </body>
 </html>
+
 
 
 
