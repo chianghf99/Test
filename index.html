@@ -666,9 +666,11 @@
             const activeSection = ref('');
             const showChangelog = ref(false);
             
-            // XIRR 變數
+            // XIRR 變數 (v3.3.2 增強版)
             const xirrValue = ref(0.0);
             const xirrStartDate = ref('-');
+            const xirrStartVal = ref(0); // 用於除錯顯示
+            const xirrEndVal = ref(0);   // 用於除錯顯示
 
             // Stock Notes
             const showStockNoteModal = ref(false);
@@ -708,7 +710,6 @@
             
             let chartInstance = null, pieTwInstance = null, pieUsInstance = null;
             
-            // 已實現損益變數
             const realizedGains = ref([]); 
             const realizedSearchQuery = ref(''); 
             const sortKeyRealized = ref('date');
@@ -735,7 +736,6 @@
                 if (savedPrivacySetting === 'true') { defaultPrivacyHidden.value = true; showPrivacy.value = false; } 
                 else { defaultPrivacyHidden.value = false; showPrivacy.value = true; }
                 
-                // 年份自動化
                 const currentY = new Date().getFullYear();
                 const years = [];
                 for(let y = 2024; y <= currentY + 1; y++) {
@@ -765,7 +765,7 @@
                 fetchExchangeRate();
             });
 
-            // --- 3. 計算屬性 (Computed) ---
+            // --- 3. 計算屬性 ---
             const sortedRealizedGains = computed(() => {
                 let data = realizedGains.value.slice();
                 if (realizedSearchQuery.value) {
@@ -827,7 +827,7 @@
 
             const sortedDividends = computed(() => { return dividendRecords.value.slice().sort((a, b) => { let modifier = sortOrderDiv.value === 'desc' ? -1 : 1; if (sortKeyDiv.value === 'date') return (new Date(a.date) - new Date(b.date)) * modifier; if (sortKeyDiv.value === 'symbol') return (a.name || a.symbol).localeCompare(b.name || b.symbol) * modifier; if (sortKeyDiv.value === 'amount') return (a.amount - b.amount) * modifier; return 0; }); });
             
-            // 監聽總資產變化以觸發 XIRR 計算
+            // 觸發計算
             watch(grandTotalValue, () => {
                 if (grandTotalValue.value > 0) setTimeout(computeSystemXirr, 2000); 
             });
@@ -925,7 +925,6 @@
                 if (!user.value) return; 
                 const snap = await db.collection('users').doc(user.value.uid).collection('transactions').where('date', '>=', transStartDate.value).where('date', '<=', transEndDate.value).orderBy('date', 'desc').get(); 
                 transactionHistory.value = snap.docs.map(d => ({ id: d.id, ...d.data() })); 
-                // v3.3.0: 交易資料載入後計算 XIRR
                 computeSystemXirr();
             };
             
@@ -1052,18 +1051,16 @@
                 showStockNoteModal.value = false;
             };
 
-            // v3.3.0 XIRR 核心邏輯 (含快速通道修正)
+            // v3.3.2 強化版 XIRR 邏輯
             const calcXIRR = (transactions, guess = 0.1) => {
                 if (transactions.length < 2) return 0;
                 transactions.sort((a, b) => a.dateObj - b.dateObj);
                 
-                // 1. 快速通道：如果只有「起點」跟「終點」兩筆資料，直接用公式解
-                // 公式：(終值 / 初值)^(365 / 天數) - 1
+                // 1. 兩點公式解 (Fast Track)
                 if (transactions.length === 2) {
                     const start = transactions[0];
                     const end = transactions[1];
-                    // 初值必須是負數 (投入)，終值是正數 (現值)
-                    if (start.amount >= 0 || end.amount <= 0) return 0; // 資料異常
+                    if (start.amount >= 0 || end.amount <= 0) return 0;
                     
                     const days = (end.dateObj - start.dateObj) / (1000 * 60 * 60 * 24);
                     if (days <= 0) return 0;
@@ -1073,7 +1070,7 @@
                     return rate * 100;
                 }
 
-                // 2. 複雜情況：使用牛頓法 (原本的邏輯)
+                // 2. 牛頓法求解
                 const hasPos = transactions.some(t => t.amount > 0);
                 const hasNeg = transactions.some(t => t.amount < 0);
                 if (!hasPos || !hasNeg) return 0;
@@ -1104,28 +1101,31 @@
             const computeSystemXirr = async () => {
                 if (!user.value || grandTotalValue.value === 0) return;
                 
-                // 1. 抓取最早的歷史紀錄
+                // 1. 抓取最早歷史紀錄
                 const historySnap = await db.collection('users').doc(user.value.uid).collection('history').orderBy('date', 'asc').limit(1).get();
                 if (historySnap.empty) { xirrValue.value = 0; xirrStartDate.value = '-'; return; }
                 
                 const startData = historySnap.docs[0].data();
                 const startDate = startData.date;
                 
-                // [修正] 確保數值正確轉型，避免資料庫欄位缺失導致 NaN
-                const startNetWorth = Number(startData.totalVal) || 0; 
+                // [v3.3.2 修正] 強制轉型並移除逗號
+                let rawVal = startData.totalVal;
+                if (typeof rawVal === 'string') rawVal = rawVal.replace(/,/g, '');
+                const startNetWorth = Number(rawVal) || 0;
+                
                 xirrStartDate.value = startDate;
+                xirrStartVal.value = formatCurrency(startNetWorth, 'TWD'); // Debug
+                xirrEndVal.value = formatCurrency(grandTotalValue.value, 'TWD'); // Debug
 
-                // 2. 抓取這段期間內的所有現金流 (入金/出金)
+                // 2. 抓取現金流
                 const txSnap = await db.collection('users').doc(user.value.uid).collection('transactions')
                     .where('date', '>', startDate)
                     .where('type', 'in', ['deposit', 'withdraw'])
                     .get();
 
                 const flows = [];
-                // 初始投入 (負值)
                 flows.push({ amount: -Math.abs(startNetWorth), dateObj: new Date(startDate) });
 
-                // 中途資金進出
                 txSnap.docs.forEach(doc => {
                     const t = doc.data();
                     const amt = t.currency === 'USD' ? t.totalAmount * exchangeRate.value : t.totalAmount;
@@ -1136,10 +1136,9 @@
                     }
                 });
 
-                // 3. 終值 (今天的淨資產，正值)
                 flows.push({ amount: grandTotalValue.value, dateObj: new Date() });
 
-                // 4. 計算
+                // 3. 計算並更新 UI
                 const result = calcXIRR(flows);
                 xirrValue.value = result.toFixed(2);
             };
@@ -1196,8 +1195,8 @@
                 setChartRange, currentRange, historyFilterYear, availableYears,
                 // v2.9.20: Stock Notes
                 openStockNoteModal, showStockNoteModal, stockNoteForm, saveStockNote,
-                // v3.3.0: XIRR
-                xirrValue, xirrStartDate, computeSystemXirr
+                // v3.3.0: XIRR (修正版)
+                xirrValue, xirrStartDate, computeSystemXirr, xirrStartVal, xirrEndVal
             };
         }
     }).mount('#app');
@@ -1205,6 +1204,7 @@
 
 </body>
 </html>
+
 
 
 
