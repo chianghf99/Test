@@ -681,11 +681,12 @@
             const activeSection = ref('');
             const showChangelog = ref(false);
             
-            // XIRR 變數 (v3.3.2 增強版)
+            // XIRR 變數 (v3.3.3)
             const xirrValue = ref(0.0);
             const xirrStartDate = ref('-');
-            const xirrStartVal = ref(0); // 用於除錯顯示
-            const xirrEndVal = ref(0);   // 用於除錯顯示
+            const xirrStartVal = ref(0);
+            const xirrEndVal = ref(0);
+            const xirrFlowCount = ref(0); // 新增：顯示金流筆數
 
             // Stock Notes
             const showStockNoteModal = ref(false);
@@ -1066,96 +1067,108 @@
                 showStockNoteModal.value = false;
             };
 
-            // v3.3.2 強化版 XIRR 邏輯
-            const calcXIRR = (transactions, guess = 0.1) => {
+            // v3.3.3: 日期解析輔助 (Fix iOS/Safari)
+            const parseDate = (str) => {
+                // 將 2025-12-18 轉為 2025/12/18 以相容 Safari
+                if(!str) return new Date();
+                return new Date(str.replace(/-/g, '/'));
+            };
+
+            // v3.3.3 XIRR 核心邏輯 (多重猜測 + 強制收斂)
+            const calcXIRR = (transactions) => {
                 if (transactions.length < 2) return 0;
                 transactions.sort((a, b) => a.dateObj - b.dateObj);
                 
-                // 1. 兩點公式解 (Fast Track)
+                // 1. Fast Track (公式解)
                 if (transactions.length === 2) {
                     const start = transactions[0];
                     const end = transactions[1];
-                    if (start.amount >= 0 || end.amount <= 0) return 0;
+                    if (start.amount >= 0 || end.amount <= 0) return 0; // Error: directions wrong
                     
                     const days = (end.dateObj - start.dateObj) / (1000 * 60 * 60 * 24);
-                    if (days <= 0) return 0;
+                    if (days <= 0) return 0; // Error: same day
                     
                     const ratio = end.amount / Math.abs(start.amount);
                     const rate = Math.pow(ratio, 365 / days) - 1;
-                    return rate * 100;
+                    return isNaN(rate) ? 0 : rate * 100;
                 }
 
-                // 2. 牛頓法求解
-                const hasPos = transactions.some(t => t.amount > 0);
-                const hasNeg = transactions.some(t => t.amount < 0);
-                if (!hasPos || !hasNeg) return 0;
-
-                let rate = guess;
-                const maxIter = 50;
+                // 2. Newton Method (多重猜測機制)
+                const guesses = [0.1, -0.1, 0.5, -0.5, 0.0, 0.9]; // 嘗試不同起點
                 const tol = 1e-6;
+                const maxIter = 50;
 
-                for (let i = 0; i < maxIter; i++) {
-                    let fValue = 0;
-                    let fDerivative = 0;
-                    for (const t of transactions) {
-                        const days = (t.dateObj - transactions[0].dateObj) / (1000 * 60 * 60 * 24);
-                        const factor = Math.pow(1 + rate, days / 365);
-                        fValue += t.amount / factor;
-                        fDerivative -= (days / 365) * t.amount / (factor * (1 + rate));
+                for (let guess of guesses) {
+                    let rate = guess;
+                    for (let i = 0; i < maxIter; i++) {
+                        let fValue = 0;
+                        let fDerivative = 0;
+                        for (const t of transactions) {
+                            const days = (t.dateObj - transactions[0].dateObj) / (1000 * 60 * 60 * 24);
+                            const factor = Math.pow(1 + rate, days / 365);
+                            if (factor === 0) continue; // avoid div/0
+                            fValue += t.amount / factor;
+                            fDerivative -= (days / 365) * t.amount / (factor * (1 + rate));
+                        }
+                        
+                        if (Math.abs(fValue) < tol) return rate * 100; // Found!
+                        if (Math.abs(fDerivative) < 1e-9) break; // Derivative too small, next guess
+                        
+                        const newRate = rate - fValue / fDerivative;
+                        if (Math.abs(newRate - rate) < tol) return newRate * 100;
+                        
+                        rate = newRate;
+                        if (isNaN(rate) || Math.abs(rate) > 1000) break; // Diverged, next guess
+                        if (rate <= -1) rate = -0.99; 
                     }
-                    if (Math.abs(fValue) < tol) return rate * 100;
-                    const newRate = rate - fValue / fDerivative;
-                    if (Math.abs(newRate - rate) < tol) return newRate * 100;
-                    rate = newRate;
-                    if (rate <= -1) rate = -0.99; 
-                    if (isNaN(rate)) return 0;
                 }
-                return rate * 100;
+                
+                return 'Err'; // 全部失敗回傳錯誤碼 (方便除錯)
             };
 
             const computeSystemXirr = async () => {
                 if (!user.value || grandTotalValue.value === 0) return;
                 
-                // 1. 抓取最早歷史紀錄
                 const historySnap = await db.collection('users').doc(user.value.uid).collection('history').orderBy('date', 'asc').limit(1).get();
                 if (historySnap.empty) { xirrValue.value = 0; xirrStartDate.value = '-'; return; }
                 
                 const startData = historySnap.docs[0].data();
                 const startDate = startData.date;
                 
-                // [v3.3.2 修正] 強制轉型並移除逗號
                 let rawVal = startData.totalVal;
                 if (typeof rawVal === 'string') rawVal = rawVal.replace(/,/g, '');
                 const startNetWorth = Number(rawVal) || 0;
                 
                 xirrStartDate.value = startDate;
-                xirrStartVal.value = formatCurrency(startNetWorth, 'TWD'); // Debug
-                xirrEndVal.value = formatCurrency(grandTotalValue.value, 'TWD'); // Debug
+                xirrStartVal.value = formatCurrency(startNetWorth, 'TWD'); 
+                xirrEndVal.value = formatCurrency(grandTotalValue.value, 'TWD'); 
 
-                // 2. 抓取現金流
                 const txSnap = await db.collection('users').doc(user.value.uid).collection('transactions')
                     .where('date', '>', startDate)
                     .where('type', 'in', ['deposit', 'withdraw'])
                     .get();
 
                 const flows = [];
-                flows.push({ amount: -Math.abs(startNetWorth), dateObj: new Date(startDate) });
+                // [v3.3.3] 使用 parseDate 確保 iOS 相容性
+                flows.push({ amount: -Math.abs(startNetWorth), dateObj: parseDate(startDate) });
 
                 txSnap.docs.forEach(doc => {
                     const t = doc.data();
                     const amt = t.currency === 'USD' ? t.totalAmount * exchangeRate.value : t.totalAmount;
                     if (t.type === 'deposit') {
-                        flows.push({ amount: -Math.abs(amt), dateObj: new Date(t.date) });
+                        flows.push({ amount: -Math.abs(amt), dateObj: parseDate(t.date) });
                     } else if (t.type === 'withdraw') {
-                        flows.push({ amount: Math.abs(amt), dateObj: new Date(t.date) });
+                        flows.push({ amount: Math.abs(amt), dateObj: parseDate(t.date) });
                     }
                 });
 
-                flows.push({ amount: grandTotalValue.value, dateObj: new Date() });
+                flows.push({ amount: grandTotalValue.value, dateObj: new Date() }); // End is Now
 
-                // 3. 計算並更新 UI
+                xirrFlowCount.value = flows.length; // [v3.3.3] 更新除錯筆數
+
+                // 4. 計算
                 const result = calcXIRR(flows);
-                xirrValue.value = result.toFixed(2);
+                xirrValue.value = (typeof result === 'number') ? result.toFixed(2) : result;
             };
 
             const getYahooData = async (symbol) => { let s = symbol.toUpperCase(); if (/^\d{4,6}[A-Z]?$/.test(s)) s += '.TW'; try { const r = await fetch('https://corsproxy.io/?' + encodeURIComponent(`https://query1.finance.yahoo.com/v8/finance/chart/${s}?interval=1d&events=div,splits&t=${Date.now()}`)); const j = await r.json(); if (!j.chart?.result?.length) { if (s.endsWith('.TW')) { const r2 = await fetch('https://corsproxy.io/?' + encodeURIComponent(`https://query1.finance.yahoo.com/v8/finance/chart/${s.replace('.TW','.TWO')}?interval=1d&t=${Date.now()}`)); const j2 = await r2.json(); if (j2.chart?.result) return { symbol: j2.chart.result[0].meta.symbol, regularMarketPrice: j2.chart.result[0].meta.regularMarketPrice, previousClose: j2.chart.result[0].meta.chartPreviousClose || j2.chart.result[0].meta.previousClose }; } throw new Error('Not Found'); } return { symbol: j.chart.result[0].meta.symbol, regularMarketPrice: j.chart.result[0].meta.regularMarketPrice, previousClose: j.chart.result[0].meta.chartPreviousClose || j.chart.result[0].meta.previousClose }; } catch (e) { return null; } };
@@ -1210,15 +1223,15 @@
                 setChartRange, currentRange, historyFilterYear, availableYears,
                 // v2.9.20: Stock Notes
                 openStockNoteModal, showStockNoteModal, stockNoteForm, saveStockNote,
-                // v3.3.0: XIRR (修正版)
-                xirrValue, xirrStartDate, computeSystemXirr, xirrStartVal, xirrEndVal
+                // v3.3.3: XIRR (修正版)
+                xirrValue, xirrStartDate, computeSystemXirr, xirrStartVal, xirrEndVal, xirrFlowCount
             };
         }
     }).mount('#app');
 </script>
-
 </body>
 </html>
+
 
 
 
