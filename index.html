@@ -827,7 +827,6 @@
 
             const sortedDividends = computed(() => { return dividendRecords.value.slice().sort((a, b) => { let modifier = sortOrderDiv.value === 'desc' ? -1 : 1; if (sortKeyDiv.value === 'date') return (new Date(a.date) - new Date(b.date)) * modifier; if (sortKeyDiv.value === 'symbol') return (a.name || a.symbol).localeCompare(b.name || b.symbol) * modifier; if (sortKeyDiv.value === 'amount') return (a.amount - b.amount) * modifier; return 0; }); });
             
-            // 監聽總資產變化以觸發 XIRR 計算
             watch(grandTotalValue, () => {
                 if (grandTotalValue.value > 0) setTimeout(computeSystemXirr, 2000); 
             });
@@ -981,6 +980,7 @@
             const submitTransaction = async () => { 
                 const selectedLoan = isLoanMode.value ? loanList.value.find(l => l.id === transForm.value.loanId) : null; 
                 const loanName = selectedLoan ? selectedLoan.name : ''; 
+                // v3.0.0 Update: Append memo to loan name if present
                 const nameStr = isLoanMode.value 
                     ? `${getTypeName(transForm.value.type)} (${loanName})${transForm.value.name ? ' - ' + transForm.value.name : ''}` 
                     : (isFundMode.value ? (transForm.value.name || getTypeName(transForm.value.type)) : transForm.value.name);
@@ -995,7 +995,7 @@
                     totalAmount: transForm.value.totalAmount, 
                     currency: form.value.currency, 
                     loanId: isLoanMode.value ? transForm.value.loanId : null, 
-                    memo: transForm.value.name || transForm.value.memo,
+                    memo: transForm.value.name || transForm.value.memo, // Also save in memo for future
                     timestamp: firebase.firestore.FieldValue.serverTimestamp() 
                 }; 
                 
@@ -1082,6 +1082,7 @@
                 return rate * 100;
             };
 
+            // v3.3.0 修正版：修復重複扣除 Loan 問題，並排除首日交易
             const computeSystemXirr = async () => {
                 if (!user.value || grandTotalValue.value === 0) return;
                 
@@ -1091,13 +1092,15 @@
                 
                 const startData = historySnap.docs[0].data();
                 const startDate = startData.date;
-                const startNetWorth = (startData.totalVal || 0) - (startData.loan || 0); // 確保是淨資產
+                
+                // [修正] 直接使用 totalVal (已是淨資產)，不要再減 loan
+                const startNetWorth = startData.totalVal || 0; 
                 xirrStartDate.value = startDate;
 
                 // 2. 抓取這段期間內的所有現金流 (入金/出金)
-                // 注意: 入金(deposit)對使用者是流出(負)，出金(withdraw)是流入(正)
+                // [修正] 使用 '>' (大於) 排除起點當天的交易，避免重複計算
                 const txSnap = await db.collection('users').doc(user.value.uid).collection('transactions')
-                    .where('date', '>=', startDate)
+                    .where('date', '>', startDate)
                     .where('type', 'in', ['deposit', 'withdraw'])
                     .get();
 
@@ -1185,6 +1188,7 @@
 
 </body>
 </html>
+
 
 
 
