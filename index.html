@@ -657,54 +657,156 @@
         <div v-if="showHistoryEditModalVisible" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"><div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-sm overflow-hidden"><div class="bg-gray-800 dark:bg-gray-900 text-white px-6 py-4 flex justify-between items-center"><h3 class="font-bold">校正歷史紀錄</h3><button @click="showHistoryEditModalVisible=false" class="text-gray-300 hover:text-white"><i class="fa-solid fa-times"></i></button></div><div class="p-6 space-y-3"><div class="text-center text-sm text-gray-500 mb-2">日期：{{ historyEditForm.date }}</div><div class="grid grid-cols-2 gap-3"><div><label class="block text-xs font-bold text-gray-500 mb-1">台股股票</label><input type="number" v-model.number="historyEditForm.twVal" class="zen-input text-right"></div><div><label class="block text-xs font-bold text-gray-500 mb-1">美股股票 (USD)</label><input type="number" v-model.number="historyEditForm.usVal" class="zen-input text-right"></div></div><div class="grid grid-cols-2 gap-3"><div><label class="block text-xs font-bold text-gray-500 mb-1">台幣現金</label><input type="number" v-model.number="historyEditForm.twCash" class="zen-input text-right"></div><div><label class="block text-xs font-bold text-gray-500 mb-1">美金現金</label><input type="number" v-model.number="historyEditForm.usCash" class="zen-input text-right"></div></div><div><label class="block text-xs font-bold text-gray-500 mb-1">貸款總額 (台幣)</label><input type="number" v-model.number="historyEditForm.loan" class="zen-input text-right text-red-500"></div><div class="text-center mt-4 pt-4 border-t border-gray-100 dark:border-gray-700"><div class="text-xs text-gray-400">預覽淨資產 (Net Worth)</div><div class="text-xl font-bold text-gray-800 dark:text-white">{{ formatCurrency(calculateHistoryNetWorth(), 'TWD') }}</div></div></div><div class="bg-gray-50 dark:bg-gray-700 px-6 py-4 flex justify-end gap-3"><button @click="showHistoryEditModalVisible=false" class="px-4 py-2 rounded text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-600 transition">取消</button><button @click="saveHistoryRecord" class="px-6 py-2 rounded bg-gray-800 text-white font-medium hover:bg-gray-700 transition">儲存修正</button></div></div></div>
         <div v-if="showModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"><div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md overflow-hidden"><div class="bg-gray-800 dark:bg-gray-900 text-white px-6 py-4 flex justify-between items-center"><h3 class="font-bold">編輯持股 (資料校正)</h3><button @click="closeModal" class="text-gray-300 hover:text-white"><i class="fa-solid fa-times"></i></button></div><div class="bg-red-50 dark:bg-red-900/30 px-6 py-3 border-b border-red-100 dark:border-red-900/50 flex items-start gap-3"><i class="fa-solid fa-triangle-exclamation text-red-600 dark:text-red-400 mt-0.5"></i><div class="text-xs text-red-700 dark:text-red-300"><span class="font-bold block mb-1">注意：</span>此處修改僅供資料錯誤時校正使用，<br><span class="font-bold">不會</span> 連動現金餘額或產生交易紀錄。</div></div><div class="p-6 space-y-4"><div class="grid grid-cols-2 gap-4"><div><label class="block text-xs font-bold text-gray-500 mb-1">代號</label><input v-model="form.symbol" @change="autoFetchName" class="zen-input uppercase" placeholder="如 2330"></div><div><label class="block text-xs font-bold text-gray-500 mb-1">幣別</label><select v-model="form.currency" class="zen-input"><option value="TWD">TWD</option><option value="USD">USD</option></select></div></div><div><label class="block text-xs font-bold text-gray-500 mb-1">名稱</label><input type="text" v-model="form.name" class="zen-input"></div><div class="grid grid-cols-2 gap-4"><div><label class="block text-xs font-bold text-gray-500 mb-1">股數</label><input type="number" step="any" v-model.number="form.shares" class="zen-input"></div><div><label class="block text-xs font-bold text-gray-500 mb-1">平均成本</label><input type="number" step="any" v-model.number="form.avgCost" class="zen-input"></div></div><div class="grid grid-cols-2 gap-4"><div><label class="block text-xs font-bold text-gray-500 mb-1">現價</label><input type="number" step="any" v-model.number="form.currentPrice" class="zen-input bg-gray-50 dark:bg-gray-700/50"></div><div><label class="block text-xs font-bold text-gray-500 mb-1">已領股息</label><input type="number" step="any" v-model.number="form.dividends" class="zen-input"></div></div></div><div class="bg-gray-50 dark:bg-gray-700 px-6 py-4 flex justify-end gap-3"><button @click="closeModal" class="px-4 py-2 rounded text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-600 transition">取消</button><button @click="saveStock" class="px-6 py-2 rounded bg-gray-800 text-white font-medium hover:bg-gray-700 transition">儲存修正</button></div></div></div>
         
-        <div v-if="showTransModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"><div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-sm overflow-hidden"><div class="bg-gray-800 dark:bg-gray-900 text-white px-6 py-4 flex justify-between items-center"><div><h3 class="font-bold">交易/資金</h3><div class="text-xs text-gray-400">{{ transForm.symbol }} {{ transForm.name }}</div></div><button @click="closeTransModal" class="text-gray-300 hover:text-white"><i class="fa-solid fa-times"></i></button></div><div class="grid grid-cols-3 text-sm font-bold border-b border-gray-100 dark:border-gray-700"><template v-if="isLoanMode"><div @click="transForm.type = 'borrow'" :class="{'active-buy': transForm.type === 'borrow'}" class="trans-btn dark:text-gray-300 col-span-1">借款 (Borrow)</div><div @click="transForm.type = 'repay'" :class="{'active-sell': transForm.type === 'repay'}" class="trans-btn dark:text-gray-300 col-span-1">還款 (Repay)</div><div class="trans-btn dark:text-gray-300 col-span-1 opacity-0 pointer-events-none"></div></template><template v-else-if="isFundMode"><div @click="transForm.type = 'deposit'" :class="{'active-buy': transForm.type === 'deposit'}" class="trans-btn dark:text-gray-300 col-span-1">入金 (Deposit)</div><div @click="transForm.type = 'withdraw'" :class="{'active-sell': transForm.type === 'withdraw'}" class="trans-btn dark:text-gray-300 col-span-1">出金 (Withdraw)</div><div class="trans-btn dark:text-gray-300 col-span-1 opacity-0 pointer-events-none"></div></template><template v-else><div @click="transForm.type = 'buy'" :class="{'active-buy': transForm.type === 'buy'}" class="trans-btn dark:text-gray-300">買入</div><div @click="transForm.type = 'sell'" :class="{'active-sell': transForm.type === 'sell'}" class="trans-btn dark:text-gray-300">賣出</div><div @click="transForm.type = 'dividend'" :class="{'active-div': transForm.type === 'dividend'}" class="trans-btn dark:text-gray-300">領息</div></template></div><div class="p-6 space-y-4">
-            <div v-if="isLoanMode">
-                <div>
-                    <label class="block text-xs font-bold text-gray-500 mb-1">選擇借款帳戶</label>
-                    <select v-model="transForm.loanId" class="zen-input">
-                        <option v-for="l in loanList" :key="l.id" :value="l.id">{{ l.name }} (餘額: {{ formatNumber(l.balance) }})</option>
-                    </select>
-                    <div v-if="loanList.length===0" class="text-red-500 text-xs mt-1">請先到資金管理頁新增帳戶</div>
-                </div>
-                <div class="mt-2">
-                    <label class="block text-xs font-bold text-gray-500 mb-1">日期</label>
-                    <input type="date" v-model="transForm.date" class="zen-input">
-                </div>
-                <div class="mt-2">
-                    <label class="block text-xs font-bold text-gray-500 mb-1">金額</label>
-                    <input type="number" step="any" v-model.number="transForm.totalAmount" class="zen-input" placeholder="輸入金額">
-                </div>
-                <div class="mt-2">
-                    <label class="block text-xs font-bold text-gray-500 mb-1">備註 (選填)</label>
-                    <input type="text" v-model="transForm.name" class="zen-input" placeholder="如: 年終還款">
+        <div v-if="showTransModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-sm overflow-hidden">
+                
+                <div class="bg-gray-800 dark:bg-gray-900 text-white px-6 py-3 flex justify-between items-center">
+                    <div>
+                        <h3 class="font-bold">新增紀錄</h3>
+                        <div class="text-xs text-gray-400" v-if="!isLoanMode && !isFundMode && transForm.symbol">{{ transForm.symbol }} {{ transForm.name }}</div>
+                        <div class="text-xs text-gray-400" v-else>{{ isLoanMode ? '借貸管理' : (isFundMode ? '資金存取' : '股票交易') }}</div>
+                    </div>
+                    <button @click="closeTransModal" class="text-gray-300 hover:text-white"><i class="fa-solid fa-times"></i></button>
                 </div>
 
-                <div v-if="transForm.type === 'repay'" class="mt-4 pt-3 border-t border-gray-100 dark:border-gray-700">
-                    <label class="block text-xs font-bold text-gray-500 mb-2">還款資金來源</label>
-                    <div class="grid grid-cols-2 gap-3">
-                        <div @click="repaySource = 'internal'; isSyncToCash = true" 
-                             :class="repaySource === 'internal' ? 'border-green-600 bg-green-50 dark:bg-green-900/30 ring-1 ring-green-600' : 'border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'"
-                             class="cursor-pointer border rounded-lg p-3 text-center transition relative">
-                            <div class="text-sm font-bold text-gray-800 dark:text-gray-200">帳戶餘額</div>
-                            <div class="text-[10px] text-gray-500 mt-0.5">現金會減少</div>
-                            <i v-if="repaySource === 'internal'" class="fa-solid fa-circle-check absolute top-1 right-1 text-green-600 text-xs"></i>
+                <div class="flex text-sm font-bold bg-gray-50 dark:bg-gray-700 border-b border-gray-100 dark:border-gray-600">
+                    <button @click="openTransModal(null)" 
+                            class="flex-1 py-3 text-center transition border-b-2"
+                            :class="(!isLoanMode && !isFundMode) ? 'border-gray-800 text-gray-800 dark:border-white dark:text-white bg-white dark:bg-gray-800' : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'">
+                        <i class="fa-solid fa-arrow-trend-up mr-1"></i>股票
+                    </button>
+                    <button @click="openFundModal()" 
+                            class="flex-1 py-3 text-center transition border-b-2"
+                            :class="isFundMode ? 'border-blue-500 text-blue-600 bg-white dark:bg-gray-800' : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'">
+                        <i class="fa-solid fa-wallet mr-1"></i>資金
+                    </button>
+                    <button @click="openLoanModal()" 
+                            class="flex-1 py-3 text-center transition border-b-2"
+                            :class="isLoanMode ? 'border-purple-500 text-purple-600 bg-white dark:bg-gray-800' : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'">
+                        <i class="fa-solid fa-landmark mr-1"></i>借貸
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-3 text-sm font-bold border-b border-gray-100 dark:border-gray-700">
+                    <template v-if="isLoanMode">
+                        <div @click="transForm.type = 'borrow'" :class="{'active-buy': transForm.type === 'borrow'}" class="trans-btn dark:text-gray-300 col-span-1">借款 (Borrow)</div>
+                        <div @click="transForm.type = 'repay'" :class="{'active-sell': transForm.type === 'repay'}" class="trans-btn dark:text-gray-300 col-span-1">還款 (Repay)</div>
+                        <div class="trans-btn dark:text-gray-300 col-span-1 opacity-0 pointer-events-none"></div>
+                    </template>
+                    <template v-else-if="isFundMode">
+                        <div @click="transForm.type = 'deposit'" :class="{'active-buy': transForm.type === 'deposit'}" class="trans-btn dark:text-gray-300 col-span-1">入金 (Deposit)</div>
+                        <div @click="transForm.type = 'withdraw'" :class="{'active-sell': transForm.type === 'withdraw'}" class="trans-btn dark:text-gray-300 col-span-1">出金 (Withdraw)</div>
+                        <div class="trans-btn dark:text-gray-300 col-span-1 opacity-0 pointer-events-none"></div>
+                    </template>
+                    <template v-else>
+                        <div @click="transForm.type = 'buy'" :class="{'active-buy': transForm.type === 'buy'}" class="trans-btn dark:text-gray-300">買入</div>
+                        <div @click="transForm.type = 'sell'" :class="{'active-sell': transForm.type === 'sell'}" class="trans-btn dark:text-gray-300">賣出</div>
+                        <div @click="transForm.type = 'dividend'" :class="{'active-div': transForm.type === 'dividend'}" class="trans-btn dark:text-gray-300">領息</div>
+                    </template>
+                </div>
+
+                <div class="p-6 space-y-4">
+                    <div v-if="isLoanMode">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 mb-1">選擇借款帳戶</label>
+                            <select v-model="transForm.loanId" class="zen-input">
+                                <option v-for="l in loanList" :key="l.id" :value="l.id">{{ l.name }} (餘額: {{ formatNumber(l.balance) }})</option>
+                            </select>
+                            <div v-if="loanList.length===0" class="text-red-500 text-xs mt-1">請先到資金管理頁新增帳戶</div>
                         </div>
-                        
-                        <div @click="repaySource = 'external'; isSyncToCash = true" 
-                             :class="repaySource === 'external' ? 'border-purple-600 bg-purple-50 dark:bg-purple-900/30 ring-1 ring-purple-600' : 'border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'"
-                             class="cursor-pointer border rounded-lg p-3 text-center transition relative">
-                            <div class="text-sm font-bold text-gray-800 dark:text-gray-200">外部資金 (薪水)</div>
-                            <div class="text-[10px] text-gray-500 mt-0.5">自動補登入金</div>
-                            <i v-if="repaySource === 'external'" class="fa-solid fa-circle-check absolute top-1 right-1 text-purple-600 text-xs"></i>
+                        <div class="mt-2">
+                            <label class="block text-xs font-bold text-gray-500 mb-1">日期</label>
+                            <input type="date" v-model="transForm.date" class="zen-input">
+                        </div>
+                        <div class="mt-2">
+                            <label class="block text-xs font-bold text-gray-500 mb-1">金額</label>
+                            <input type="number" step="any" v-model.number="transForm.totalAmount" class="zen-input" placeholder="輸入金額">
+                        </div>
+                        <div class="mt-2">
+                            <label class="block text-xs font-bold text-gray-500 mb-1">備註 (選填)</label>
+                            <input type="text" v-model="transForm.name" class="zen-input" placeholder="如: 年終還款">
+                        </div>
+                        <div class="flex items-center mt-3 p-3 bg-purple-50 dark:bg-purple-900/20 rounded border border-purple-100 dark:border-purple-800">
+                            <input type="checkbox" id="syncCash" v-model="isSyncToCash" class="w-4 h-4 text-purple-600 rounded">
+                            <label for="syncCash" class="ml-2 text-sm text-gray-700 dark:text-gray-300">同步{{ transForm.type==='borrow'?'入金':'扣款' }}至台幣現金</label>
                         </div>
                     </div>
-                </div>
 
-                <div v-else class="flex items-center mt-3 p-3 bg-purple-50 dark:bg-purple-900/20 rounded border border-purple-100 dark:border-purple-800">
-                    <input type="checkbox" id="syncCash" v-model="isSyncToCash" class="w-4 h-4 text-purple-600 rounded">
-                    <label for="syncCash" class="ml-2 text-sm text-gray-700 dark:text-gray-300">同步{{ transForm.type==='borrow'?'入金':'扣款' }}至台幣現金</label>
+                    <div v-else-if="isFundMode">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 mb-1">幣別</label>
+                            <select v-model="form.currency" class="zen-input">
+                                <option value="TWD">TWD</option>
+                                <option value="USD">USD</option>
+                            </select>
+                        </div>
+                        <div class="mt-2">
+                            <label class="block text-xs font-bold text-gray-500 mb-1">日期</label>
+                            <input type="date" v-model="transForm.date" class="zen-input">
+                        </div>
+                        <div class="mt-2">
+                            <label class="block text-xs font-bold text-gray-500 mb-1">金額</label>
+                            <input type="number" step="any" v-model.number="transForm.totalAmount" class="zen-input" placeholder="輸入金額">
+                        </div>
+                        <div class="mt-2">
+                            <label class="block text-xs font-bold text-gray-500 mb-1">備註 (選填)</label>
+                            <input type="text" v-model="transForm.name" class="zen-input" placeholder="如: 薪水轉入">
+                        </div>
+                    </div>
+
+                    <div v-else>
+                        <div v-if="!transForm.id">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 mb-1">代號</label>
+                                <div class="flex gap-2">
+                                    <input type="text" v-model="transForm.symbol" @change="autoFetchTransName" class="zen-input uppercase" placeholder="輸入代號">
+                                    <button @click="autoFetchTransName" class="bg-gray-200 dark:bg-gray-700 px-3 rounded"><i class="fa-solid fa-search"></i></button>
+                                </div>
+                            </div>
+                            <div class="mt-2">
+                                <label class="block text-xs font-bold text-gray-500 mb-1">名稱</label>
+                                <input type="text" v-model="transForm.name" class="zen-input">
+                            </div>
+                            <div class="mt-2">
+                                <label class="block text-xs font-bold text-gray-500 mb-1">幣別</label>
+                                <select v-model="form.currency" class="zen-input">
+                                    <option value="TWD">TWD</option>
+                                    <option value="USD">USD</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div v-if="transForm.type !== 'dividend'" class="mt-2">
+                            <label class="block text-xs font-bold text-gray-500 mb-1">股數</label>
+                            <input type="number" step="any" v-model.number="transForm.shares" class="zen-input" placeholder="0">
+                        </div>
+                        <div v-if="transForm.type !== 'dividend'" class="mt-2">
+                            <label class="block text-xs font-bold text-gray-500 mb-1">總金額 ({{form.currency}})</label>
+                            <input type="number" step="any" v-model.number="transForm.totalAmount" class="zen-input" placeholder="含手續費/稅">
+                            <div class="text-xs text-gray-400 mt-1 text-right" v-if="transForm.shares > 0 && transForm.totalAmount > 0">≈ 均價 {{ formatCurrency(transForm.totalAmount / transForm.shares, form.currency) }}</div>
+                        </div>
+                        <div v-if="transForm.type === 'dividend'" class="mt-2">
+                            <label class="block text-xs font-bold text-gray-500 mb-1">入帳日期</label>
+                            <input type="date" v-model="transForm.date" class="zen-input">
+                        </div>
+                        <div v-if="transForm.type === 'dividend'" class="mt-2">
+                            <label class="block text-xs font-bold text-gray-500 mb-1">股息金額 ({{form.currency}})</label>
+                            <input type="number" step="any" v-model.number="transForm.totalAmount" class="zen-input" placeholder="輸入金額">
+                        </div>
+                        
+                        <div class="mt-2">
+                            <label class="block text-xs font-bold text-gray-500 mb-1">備註 (選填)</label>
+                            <input type="text" v-model="transForm.memo" class="zen-input" placeholder="如: 加碼">
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-50 dark:bg-gray-700 px-6 py-4 flex justify-end gap-3 -mx-6 -mb-4 mt-4">
+                        <button @click="closeTransModal" class="px-4 py-2 rounded text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-600 transition">取消</button>
+                        <button @click="submitTransaction" :class="{'bg-purple-600 hover:bg-purple-700': isLoanMode, 'bg-blue-600 hover:bg-blue-700': isFundMode, 'bg-red-600 hover:bg-red-700': transForm.type==='buy' || transForm.type==='borrow', 'bg-green-600 hover:bg-green-700': transForm.type==='sell' || transForm.type==='repay', 'bg-yellow-500 hover:bg-yellow-600': transForm.type==='dividend'}" class="px-6 py-2 rounded text-white font-medium transition">確認</button>
+                    </div>
                 </div>
-            </div></div></div>
+            </div>
+        </div>
+        </div>
 
     </div>
 </div>
@@ -1338,6 +1440,7 @@
     
 </body>
 </html>
+
 
 
 
