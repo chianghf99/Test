@@ -632,8 +632,9 @@
                                        }"></i>
                                 </button>
 
-                                <button @click.stop="openStockNoteModal(stock)" ...>...</button>
-                                <button @click.stop="openTransModal(stock)" ...>...</button>
+                                <button @click.stop="openStockNoteModal(stock)" :class="stock.note ? 'text-yellow-500' : 'text-gray-300'" class="hover:text-yellow-600"><i class="fa-solid fa-note-sticky"></i></button>
+                                
+                                <button @click.stop="openTransModal(stock)" class="text-gray-500 hover:text-gray-900 dark:hover:text-white"><i class="fa-solid fa-calculator"></i> 補登</button>
                             </div>
                         </div>
                     </div>
@@ -776,8 +777,9 @@
                                        }"></i>
                                 </button>
 
-                                <button @click.stop="openStockNoteModal(stock)" ...>...</button>
-                                <button @click.stop="openTransModal(stock)" ...>...</button>
+                                <button @click.stop="openStockNoteModal(stock)" :class="stock.note ? 'text-yellow-500' : 'text-gray-300'" class="hover:text-yellow-600"><i class="fa-solid fa-note-sticky"></i></button>
+                                
+                                <button @click.stop="openTransModal(stock)" class="text-gray-500 hover:text-gray-900 dark:hover:text-white"><i class="fa-solid fa-calculator"></i> 補登</button>
                             </div>
                         </div>
                     </div>
@@ -1893,6 +1895,7 @@
     
 </body>
 </html>
+
 
 
 
