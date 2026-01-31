@@ -1485,7 +1485,7 @@
                     lastUpdated.value = `${new Date().getHours()}:${String(new Date().getMinutes()).padStart(2, '0')}`;
                     
                     // (選項) 如果覺得每次都要按確定很煩，這行 alert 可以註解掉
-                    // alert(`✅ 更新完成！\n成功取得 ${successCount} / ${stocks.value.length} 檔最新股價。`);
+                    alert(`✅ 更新完成！\n成功取得 ${successCount} / ${stocks.value.length} 檔最新股價。`);
                 } else {
                     alert('⚠️ 更新失敗\n無法取得任何股價資料，請檢查網路或至 [設定] 切換 Proxy 線路。');
                 }
@@ -1549,4 +1549,5 @@
     
 </body>
 </html>
+
 
