@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>我的投資組合 | Portfolio v3.5.0</title>
+    <title>我的投資組合 | Portfolio v3.4.0</title>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>tailwind.config = { darkMode: 'class' }</script>
@@ -93,7 +93,7 @@
     <div v-if="!user" class="flex-grow flex flex-col items-center justify-center p-4">
         <div class="zen-card p-8 max-w-sm w-full text-center space-y-6">
             <div class="bg-gray-800 text-white w-16 h-16 rounded-full flex items-center justify-center mx-auto text-2xl"><i class="fa-solid fa-chart-line"></i></div>
-            <div><h1 class="text-2xl font-bold dark:text-white">資產紀錄帳本 v3.5.0</h1><p class="text-gray-500 dark:text-gray-400 text-sm mt-2">v3.5.0(新增股價更新自選伺服器) </p></div>
+            <div><h1 class="text-2xl font-bold dark:text-white">資產紀錄帳本 v3.4.0</h1><p class="text-gray-500 dark:text-gray-400 text-sm mt-2">v3.4.0 </p></div>
             <button @click="login" class="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 font-medium py-2.5 rounded-lg flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-600 transition shadow-sm">
                 <img src="https://www.svgrepo.com/show/475656/google-color.svg" class="w-5 h-5 mr-3" alt="Google">使用 Google 帳號登入
             </button>
@@ -107,7 +107,7 @@
                     <a href="https://chianghf99.github.io/my-wallet/" class="text-gray-400 hover:text-gray-600 dark:hover:text-white transition"><i class="fa-solid fa-home"></i></a>
                     <h1 class="text-lg sm:text-xl font-bold tracking-wide flex items-center gap-2">
                         <span class="hidden sm:inline">我的資產帳本</span>
-                        <span @click="showChangelog=true" class="cursor-pointer bg-gray-100 dark:bg-gray-700 text-xs px-2 py-0.5 rounded text-gray-500 hover:bg-gray-200 transition">v3.5.0</span>
+                        <span @click="showChangelog=true" class="cursor-pointer bg-gray-100 dark:bg-gray-700 text-xs px-2 py-0.5 rounded text-gray-500 hover:bg-gray-200 transition">v3.4.0</span>
                     </h1>
                 </div>
                 <div class="flex items-center gap-3">
@@ -519,13 +519,12 @@
                         <div class="relative pl-6">
                             <span class="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-blue-600 border-4 border-white dark:border-gray-800"></span>
                             <div class="flex justify-between items-baseline mb-2">
-                                <span class="font-bold text-blue-600 dark:text-blue-400 text-lg">v3.5.0</span>
-                                <span class="text-xs text-gray-400">2026/01/31</span>
+                                <span class="font-bold text-blue-600 dark:text-blue-400 text-lg">v3.4.0</span>
+                                <span class="text-xs text-gray-400">2026/01/26</span>
                             </div>
                             <ul class="space-y-2 text-sm text-gray-600 dark:text-gray-300">
-                                <li class="flex items-start gap-2"><span class="mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">系統</span><span>抗封鎖機制：新增「代理伺服器 (Proxy) 切換」功能，可於偏好設定中手動選擇線路，解決報價卡住問題。</span></li>
-                                <li class="flex items-start gap-2"><span class="mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">新增</span><span>超級還款模式：還款時可選「外部資金」，系統自動補登入金與償債紀錄，確保 ROE 計算精確。</span></li>
-                                <li class="flex items-start gap-2"><span class="mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">優化</span><span>萬能交易視窗：右上角「＋」按鈕整合「股票、資金、借貸」分頁，操作更直覺。</span></li>
+                                <li class="flex items-start gap-2"><span class="mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">新增</span><span>超級還款模式：還款時可選「外部資金 (薪水)」，系統將自動補登入金，確保 ROE 計算準確。</span></li>
+                                <li class="flex items-start gap-2"><span class="mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">優化</span><span>記帳防呆提示：在資金管理與交易視窗新增操作提示，幫助區分自有資金與借貸資金。</span></li>
                             </ul>
                         </div>
 
@@ -536,8 +535,8 @@
                                 <span class="text-xs text-gray-400">2026/01/25</span>
                             </div>
                             <ul class="space-y-2 text-sm text-gray-600 dark:text-gray-300">
-                                <li class="flex items-start gap-2"><span class="mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">修正</span><span>高報酬 XIRR：修復短期獲利過高導致演算法發散的問題。</span></li>
-                                <li class="flex items-start gap-2"><span class="mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">相容</span><span>iOS 日期：解決 Safari 瀏覽器日期格式相容性問題。</span></li>
+                                <li class="flex items-start gap-2"><span class="mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">修正</span><span>高報酬 XIRR：修復短期獲利過高 (如 >100%) 導致演算法發散而顯示 0% 的問題。</span></li>
+                                <li class="flex items-start gap-2"><span class="mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">相容</span><span>iOS 日期：解決 Safari 瀏覽器無法正確解析 "YYYY-MM-DD" 日期格式的問題。</span></li>
                             </ul>
                         </div>
 
@@ -549,6 +548,7 @@
                             </div>
                             <ul class="space-y-2 text-sm text-gray-600 dark:text-gray-300">
                                 <li class="flex items-start gap-2"><span class="mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">除錯</span><span>XIRR 診斷模式：滑鼠移至「年化報酬率」問號處，可查看詳細計算參數。</span></li>
+                                <li class="flex items-start gap-2"><span class="mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">修正</span><span>數值格式：修復歷史紀錄中的數值若含逗號會導致計算錯誤的問題。</span></li>
                             </ul>
                         </div>
 
@@ -564,16 +564,29 @@
                         </div>
 
                         <div class="relative pl-6">
+                            <span class="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-red-500 border-4 border-white dark:border-gray-800"></span>
+                            <div class="flex justify-between items-baseline mb-2">
+                                <span class="font-bold text-red-600 dark:text-red-400 text-lg">v3.2.1</span>
+                                <span class="text-xs text-gray-400">2026/01/25</span>
+                            </div>
+                            <ul class="space-y-2 text-sm text-gray-600 dark:text-gray-300">
+                                <li class="flex items-start gap-2"><span class="mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300">新增</span><span>資料清除：新增「清除所有資料」功能，可一鍵重置帳號。</span></li>
+                            </ul>
+                        </div>
+
+                        <div class="relative pl-6">
                             <span class="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-gray-300 dark:bg-gray-600 border-4 border-white dark:border-gray-800"></span>
                             <div class="flex justify-between items-baseline mb-2">
                                 <span class="font-bold text-gray-500 dark:text-gray-400 text-lg">v2.9.x</span>
                                 <span class="text-xs text-gray-400">歷史紀錄</span>
                             </div>
                             <div class="bg-gray-50 dark:bg-gray-700/50 rounded p-3 text-xs text-gray-500 dark:text-gray-400 space-y-1.5">
-                                <div class="flex gap-2"><span class="font-bold">v3.2.1</span><span>新增「清除所有資料」</span></div>
-                                <div class="flex gap-2"><span class="font-bold">v3.2.0</span><span>修正還款同步與領息刪除邏輯</span></div>
-                                <div class="flex gap-2"><span class="font-bold">v3.1.0</span><span>新增已實現損益分頁與篩選</span></div>
-                                <div class="flex gap-2"><span class="font-bold">v2.9.20</span><span>新增個股筆記功能</span></div>
+                                <div class="flex gap-2"><span class="font-bold">v2.9.20</span><span>新增「個股筆記」功能</span></div>
+                                <div class="flex gap-2"><span class="font-bold">v2.9.18</span><span>新增「圖表區間」與「歷史年份」篩選</span></div>
+                                <div class="flex gap-2"><span class="font-bold">v2.9.17</span><span>新增「JSON 資料還原」備份功能</span></div>
+                                <div class="flex gap-2"><span class="font-bold">v2.9.15</span><span>新增「偏好設定」(如預設隱藏金額)</span></div>
+                                <div class="flex gap-2"><span class="font-bold">v2.9.12</span><span>新增「匯出 Excel」報表</span></div>
+                                <div class="flex gap-2"><span class="font-bold">v2.9.05</span><span>新增「借款帳戶管理」系統</span></div>
                             </div>
                         </div>
 
@@ -591,24 +604,14 @@
                 <div class="p-6 space-y-5">
                     
                     <div class="space-y-3">
-                        
                         <div class="flex items-center justify-between">
                             <div><div class="font-bold dark:text-white text-sm">預設隱藏金額</div><div class="text-xs text-gray-500">每次進入網頁時自動遮蔽金額</div></div>
                             <label class="relative inline-flex items-center cursor-pointer"><input type="checkbox" v-model="defaultPrivacyHidden" class="sr-only peer" @change="saveSettings"><div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div></label>
                         </div>
-
                         <div class="flex items-center justify-between">
                             <div><div class="font-bold dark:text-white text-sm">深色模式</div><div class="text-xs text-gray-500">切換深色/淺色介面風格</div></div>
                             <label class="relative inline-flex items-center cursor-pointer"><input type="checkbox" :checked="isDarkMode" @change="toggleDarkMode" class="sr-only peer"><div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 dark:peer-focus:ring-purple-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-purple-600"></div></label>
                         </div>
-
-                        <div class="flex items-center justify-between">
-                            <div><div class="font-bold dark:text-white text-sm">股價更新線路 (Proxy)</div><div class="text-xs text-gray-500">若更新失敗可嘗試切換</div></div>
-                            <select v-model="selectedProxy" @change="saveSettings" class="zen-input text-sm w-40 py-1 dark:bg-gray-700 dark:text-white">
-                                <option v-for="p in proxyOptions" :key="p.value" :value="p.value">{{ p.name }}</option>
-                            </select>
-                        </div>
-
                     </div>
 
                     <hr class="border-gray-100 dark:border-gray-700">
@@ -839,14 +842,6 @@
             const defaultPrivacyHidden = ref(false);
             const showSettingsModal = ref(false);
             const isDarkMode = ref(localStorage.getItem('darkMode') === 'true');
-            const selectedProxy = ref(localStorage.getItem('app_proxy_server') || 'auto');
-            const proxyOptions = [
-                { name: '自動切換 (推薦)', value: 'auto' },
-                { name: 'ThingProxy (穩)', value: 'https://thingproxy.freeboard.io/fetch/' },
-                { name: 'CodeTabs (快)', value: 'https://api.codetabs.com/v1/proxy?quest=' },
-                { name: 'CorsProxy', value: 'https://corsproxy.io/?' },
-                { name: 'AllOrigins', value: 'https://api.allorigins.win/raw?url=' }
-            ];
             const activeSection = ref('');
             const showChangelog = ref(false);
             
@@ -1049,12 +1044,8 @@
             };
 
             const toggleDarkMode = () => { isDarkMode.value = !isDarkMode.value; localStorage.setItem('darkMode', isDarkMode.value); document.documentElement.classList.toggle('dark'); };
-            const saveSettings = () => { 
-                localStorage.setItem('app_default_privacy_hidden', defaultPrivacyHidden.value);
-                // ★★★ 新增這行：儲存 Proxy 設定 ★★★
-                localStorage.setItem('app_proxy_server', selectedProxy.value); 
-            };
-            
+            const saveSettings = () => { localStorage.setItem('app_default_privacy_hidden', defaultPrivacyHidden.value); };
+
             watch(isDarkMode, () => { if (activeSection.value === 'chart') setTimeout(drawChart, 100); });
             const toggleSection = (s) => { 
                 if (activeSection.value === s) activeSection.value = ''; 
@@ -1388,39 +1379,43 @@
                 }
             };
 
+            // ★★★ 強韌版 getYahooData (自動切換代理伺服器) ★★★
             const getYahooData = async (symbol) => { 
                 let s = symbol.toUpperCase(); 
                 if (/^\d{4,6}[A-Z]?$/.test(s)) s += '.TW'; 
                 
-                // ★★★ 修改重點：根據設定決定要用哪些 Proxy ★★★
-                let proxies = [];
-                if (selectedProxy.value === 'auto') {
-                    // 自動模式：全部輪流試
-                    proxies = [
-                        'https://thingproxy.freeboard.io/fetch/',
-                        'https://api.codetabs.com/v1/proxy?quest=',
-                        'https://corsproxy.io/?',
-                        'https://api.allorigins.win/raw?url='
-                    ];
-                } else {
-                    // 指定模式：只用使用者選的那一個
-                    proxies = [selectedProxy.value];
-                }
+                // 定義代理伺服器清單 (優先順序)
+                // 1. ThingProxy (通常較穩)
+                // 2. CodeTabs (備用)
+                // 3. CorsProxy (原本的，可能被封)
+                // 4. AllOrigins (剛試過，不穩)
+                const proxies = [
+                    'https://thingproxy.freeboard.io/fetch/',
+                    'https://api.codetabs.com/v1/proxy?quest=',
+                    'https://corsproxy.io/?',
+                    'https://api.allorigins.win/raw?url='
+                ];
 
                 const targetUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${s}?interval=1d&events=div,splits&t=${Date.now()}`;
 
+                // 迴圈嘗試每一個代理伺服器
                 for (const proxy of proxies) {
                     try {
                         const url = proxy + encodeURIComponent(targetUrl);
                         const r = await fetch(url); 
-                        if (!r.ok) throw new Error(`Proxy ${proxy} failed`);
+                        
+                        // 如果這個代理掛了 (403, 500, 520...)，就拋出錯誤讓迴圈跑下一個
+                        if (!r.ok) throw new Error(`Proxy ${proxy} failed with ${r.status}`);
+                        
                         const j = await r.json(); 
                         
+                        // 檢查資料是否為空 (例如上櫃股票用 .TW 查不到)
                         if (!j.chart?.result?.length) { 
+                            // 如果是 .TW 查不到，嘗試切換成 .TWO (僅針對當前有效的 Proxy 試)
                             if (s.endsWith('.TW')) { 
                                 const s2 = s.replace('.TW','.TWO');
                                 const targetUrl2 = `https://query1.finance.yahoo.com/v8/finance/chart/${s2}?interval=1d&t=${Date.now()}`;
-                                const r2 = await fetch(proxy + encodeURIComponent(targetUrl2)); 
+                                const r2 = await fetch(proxy + encodeURIComponent(targetUrl2)); // 用同一個 Proxy 試 .TWO
                                 const j2 = await r2.json(); 
                                 if (j2.chart?.result) {
                                     return { 
@@ -1430,26 +1425,73 @@
                                     }; 
                                 }
                             } 
-                            throw new Error('Not Found'); 
+                            // 真的查不到 (不是 Proxy 問題，是代號錯)
+                            throw new Error('Not Found in Yahoo'); 
                         } 
                         
+                        // 成功抓到資料！回傳並結束函數
                         return { 
                             symbol: j.chart.result[0].meta.symbol, 
                             regularMarketPrice: j.chart.result[0].meta.regularMarketPrice, 
                             previousClose: j.chart.result[0].meta.chartPreviousClose || j.chart.result[0].meta.previousClose 
                         }; 
+
                     } catch (e) { 
-                        console.warn(`Retry: ${proxy} failed for ${s}`);
-                        if (e.message === 'Not Found') return null;
+                        // 在 Console 印出失敗訊息，並繼續嘗試下一個 Proxy
+                        console.warn(`Retry: ${proxy} failed for ${s}. Error: ${e.message}`);
+                        
+                        // 如果是 "Not Found" 代表 Yahoo 回傳空，不需要換 Proxy，直接回傳 null
+                        if (e.message === 'Not Found in Yahoo') return null;
                     } 
                 }
+                
+                // 如果全部 Proxy 都失敗
                 console.error(`All proxies failed for ${s}`);
                 return null; 
             };
             
             const autoFetchName = async () => { const s = form.value.symbol; if (!s) return; if (/^\d/.test(s)) form.value.currency = 'TWD'; else if (/^[A-Za-z]+$/.test(s)) form.value.currency = 'USD'; if (!form.value.name) form.value.name = '查詢中...'; const d = await getYahooData(s); if (d) { if (form.value.name === '查詢中...') form.value.name = d.symbol; form.value.currentPrice = d.regularMarketPrice; form.value.previousClose = d.previousClose; } else { if (form.value.name === '查詢中...') form.value.name = ''; alert('查無代號'); } };
             const autoFetchTransName = async () => { const s = transForm.value.symbol; if (!s) return; const localStock = stocks.value.find(st => st.symbol && st.symbol.toUpperCase() === s.toUpperCase()); if (localStock) { transForm.value.name = localStock.name; form.value.currency = localStock.currency; return; } if (/^\d/.test(s)) form.value.currency = 'TWD'; else if (/^[A-Za-z]+$/.test(s)) form.value.currency = 'USD'; if (!transForm.value.name) transForm.value.name = '查詢中...'; const d = await getYahooData(s); if (d) { if (transForm.value.name === '查詢中...') transForm.value.name = d.symbol; } else { if (transForm.value.name === '查詢中...') transForm.value.name = ''; } };
-            const fetchPrices = async () => { if (!user.value || stocks.value.length === 0) return; isLoading.value = true; const updates = stocks.value.map(async (s) => { const d = await getYahooData(s.symbol); return d ? { id: s.id, price: d.regularMarketPrice, prev: d.previousClose } : null; }); const res = await Promise.all(updates); const batch = db.batch(); let has = false; const ref = db.collection('users').doc(user.value.uid).collection('stocks'); res.forEach(r => { if (r) { batch.update(ref.doc(r.id), { currentPrice: r.price, previousClose: r.prev }); has = true; } }); if (has) await batch.commit(); setTimeout(saveDailySnapshot, 500); lastUpdated.value = `${new Date().getHours()}:${String(new Date().getMinutes()).padStart(2, '0')}`; isLoading.value = false; };
+            const fetchPrices = async () => { 
+                if (!user.value || stocks.value.length === 0) return; 
+                isLoading.value = true; 
+                
+                // 1. 開始抓取
+                const updates = stocks.value.map(async (s) => { 
+                    const d = await getYahooData(s.symbol); 
+                    return d ? { id: s.id, price: d.regularMarketPrice, prev: d.previousClose, symbol: s.symbol } : null; 
+                }); 
+                
+                const res = await Promise.all(updates); 
+                
+                // 2. 統計成功數量
+                const batch = db.batch(); 
+                let successCount = 0; 
+                const ref = db.collection('users').doc(user.value.uid).collection('stocks'); 
+                
+                res.forEach(r => { 
+                    if (r) { 
+                        batch.update(ref.doc(r.id), { currentPrice: r.price, previousClose: r.prev }); 
+                        successCount++; 
+                    } 
+                }); 
+                
+                // 3. 根據結果回應使用者
+                if (successCount > 0) { 
+                    await batch.commit(); 
+                    setTimeout(saveDailySnapshot, 500); 
+                    
+                    // 更新右上角時間
+                    lastUpdated.value = `${new Date().getHours()}:${String(new Date().getMinutes()).padStart(2, '0')}`;
+                    
+                    // (選項) 如果覺得每次都要按確定很煩，這行 alert 可以註解掉
+                    // alert(`✅ 更新完成！\n成功取得 ${successCount} / ${stocks.value.length} 檔最新股價。`);
+                } else {
+                    alert('⚠️ 更新失敗\n無法取得任何股價資料，請檢查網路或至 [設定] 切換 Proxy 線路。');
+                }
+                
+                isLoading.value = false; 
+            };
             const fetchExchangeRate = async () => { try { const r = await fetch('https://api.exchangerate-api.com/v4/latest/USD'); const d = await r.json(); exchangeRate.value = d.rates.TWD; } catch(e){} };
 
             const sortTransaction = (key) => { if (sortKeyTrans.value === key) sortOrderTrans.value = sortOrderTrans.value === 'asc' ? 'desc' : 'asc'; else { sortKeyTrans.value = key; sortOrderTrans.value = 'desc'; } };
@@ -1500,9 +1542,6 @@
                 openStockNoteModal, showStockNoteModal, stockNoteForm, saveStockNote,
                 // v3.3.5: XIRR (Index Bug Fix)
                 xirrValue, xirrStartDate, computeSystemXirr, xirrStartVal, xirrEndVal, xirrFlowCount, repaySource
-                // v3.4.0
-                selectedProxy, proxyOptions
-                
             };
         }
     }).mount('#app');
@@ -1510,23 +1549,4 @@
     
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
