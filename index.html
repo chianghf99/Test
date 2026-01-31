@@ -550,8 +550,23 @@
                                         <div v-else class="text-gray-300">****</div>
                                     </td>
                                     <td class="px-6 py-4 text-center">
-                                        <button @click="updateSingleStock(stock)" class="text-blue-500 hover:text-blue-700 mx-1" title="更新股價">
-                                            <i class="fa-solid fa-rotate"></i>
+                                        <button @click.stop="updateSingleStock(stock)" 
+                                                class="mx-1 transition-colors duration-200"
+                                                :class="{
+                                                    'text-blue-500 hover:text-blue-700': !stockStates[stock.id], 
+                                                    'text-blue-400 cursor-wait': stockStates[stock.id] === 'loading',
+                                                    'text-green-500': stockStates[stock.id] === 'success',
+                                                    'text-red-500 hover:text-red-700': stockStates[stock.id] === 'error'
+                                                }"
+                                                :title="stockStates[stock.id] === 'error' ? '更新失敗，點擊重試' : '更新股價'">
+                                            
+                                            <i class="fa-solid" 
+                                               :class="{
+                                                   'fa-rotate': !stockStates[stock.id], 
+                                                   'fa-circle-notch fa-spin': stockStates[stock.id] === 'loading',
+                                                   'fa-check': stockStates[stock.id] === 'success',
+                                                   'fa-triangle-exclamation': stockStates[stock.id] === 'error'
+                                               }"></i>
                                         </button>
                                         <button @click="openTransModal(stock)" class="text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 mx-1" title="補登交易"><i class="fa-solid fa-calculator"></i></button>
                                         <button @click="openStockNoteModal(stock)" :class="stock.note ? 'text-yellow-500 hover:text-yellow-600' : 'text-gray-300 hover:text-gray-500'" class="mx-1" title="個股筆記"><i class="fa-solid fa-note-sticky"></i></button>
@@ -665,8 +680,23 @@
                                         <div v-else class="text-gray-300">****</div>
                                     </td>
                                     <td class="px-6 py-4 text-center">
-                                        <button @click="updateSingleStock(stock)" class="text-blue-500 hover:text-blue-700 mx-1" title="更新股價">
-                                            <i class="fa-solid fa-rotate"></i>
+                                        <button @click.stop="updateSingleStock(stock)" 
+                                                class="mx-1 transition-colors duration-200"
+                                                :class="{
+                                                    'text-blue-500 hover:text-blue-700': !stockStates[stock.id], 
+                                                    'text-blue-400 cursor-wait': stockStates[stock.id] === 'loading',
+                                                    'text-green-500': stockStates[stock.id] === 'success',
+                                                    'text-red-500 hover:text-red-700': stockStates[stock.id] === 'error'
+                                                }"
+                                                :title="stockStates[stock.id] === 'error' ? '更新失敗，點擊重試' : '更新股價'">
+                                            
+                                            <i class="fa-solid" 
+                                               :class="{
+                                                   'fa-rotate': !stockStates[stock.id], 
+                                                   'fa-circle-notch fa-spin': stockStates[stock.id] === 'loading',
+                                                   'fa-check': stockStates[stock.id] === 'success',
+                                                   'fa-triangle-exclamation': stockStates[stock.id] === 'error'
+                                               }"></i>
                                         </button>
                                         <button @click="openTransModal(stock)" class="text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 mx-1" title="補登交易"><i class="fa-solid fa-calculator"></i></button>
                                         <button @click="openStockNoteModal(stock)" :class="stock.note ? 'text-yellow-500 hover:text-yellow-600' : 'text-gray-300 hover:text-gray-500'" class="mx-1" title="個股筆記"><i class="fa-solid fa-note-sticky"></i></button>
@@ -1083,6 +1113,7 @@
             const isDarkMode = ref(localStorage.getItem('darkMode') === 'true');
             const activeSection = ref('');
             const showChangelog = ref(false);
+            const stockStates = ref({});
             
             // XIRR 變數
             const xirrValue = ref(0.0);
@@ -1695,36 +1726,48 @@
                 if (!user.value || stocks.value.length === 0) return; 
                 isLoading.value = true; 
                 
-                // 1. 開始抓取
-                const updates = stocks.value.map(async (s) => { 
-                    const d = await getYahooData(s.symbol); 
-                    return d ? { id: s.id, price: d.regularMarketPrice, prev: d.previousClose, symbol: s.symbol } : null; 
-                }); 
+                // 1. 全部設為 Loading
+                stocks.value.forEach(s => stockStates.value[s.id] = 'loading');
                 
-                const res = await Promise.all(updates); 
-                
-                // 2. 統計成功數量
                 const batch = db.batch(); 
                 let successCount = 0; 
                 const ref = db.collection('users').doc(user.value.uid).collection('stocks'); 
                 
-                res.forEach(r => { 
-                    if (r) { 
-                        batch.update(ref.doc(r.id), { currentPrice: r.price, previousClose: r.prev }); 
-                        successCount++; 
-                    } 
+                // 2. 並行抓取 (Promise.all)
+                // 我們在這裡面直接處理個別的成功/失敗狀態
+                const promises = stocks.value.map(async (s) => { 
+                    const d = await getYahooData(s.symbol); 
+                    if (d) {
+                        // 抓到了：加入批次寫入佇列，並標記成功
+                        batch.update(ref.doc(s.id), { currentPrice: d.regularMarketPrice, previousClose: d.previousClose });
+                        stockStates.value[s.id] = 'success';
+                        successCount++;
+                        // 3秒後復原
+                        setTimeout(() => {
+                            if (stockStates.value[s.id] === 'success') delete stockStates.value[s.id];
+                        }, 3000);
+                    } else {
+                        // 沒抓到：標記失敗 (紅燈長亮)
+                        stockStates.value[s.id] = 'error';
+                    }
                 }); 
                 
-                // 3. 根據結果回應使用者
+                // 等待所有請求結束 (不管成功失敗)
+                await Promise.all(promises); 
+                
+                // 3. 統一寫入資料庫
                 if (successCount > 0) { 
                     await batch.commit(); 
                     setTimeout(saveDailySnapshot, 500); 
-                    
-                    // 更新右上角時間
                     lastUpdated.value = `${new Date().getHours()}:${String(new Date().getMinutes()).padStart(2, '0')}`;
                     
-                    // (選項) 如果覺得每次都要按確定很煩，這行 alert 可以註解掉
-                    alert(`✅ 更新完成！\n成功取得 ${successCount} / ${stocks.value.length} 檔最新股價。`);
+                    // 總結報告 (如果全部成功就不跳視窗干擾了，只有部分失敗才跳)
+                    if (successCount < stocks.value.length) {
+                        alert(`⚠️ 更新完成，但有 ${stocks.value.length - successCount} 檔失敗。\n請檢查列表中顯示「紅色驚嘆號」的項目並點擊重試。`);
+                    } else {
+                        // 全部成功：右下角稍微提示一下即可 (這裡用 console 或是就不吵使用者了)
+                        console.log('All updated successfully');
+                    }
                 } else {
                     alert('⚠️ 更新失敗\n無法取得任何股價資料，請檢查網路或至 [設定] 切換 Proxy 線路。');
                 }
@@ -1733,8 +1776,9 @@
             };
             const updateSingleStock = async (stock) => {
                 if (!user.value) return;
-                // 為了避免誤按，可以加個簡單的確認 (看您需不需要，不需要可拿掉這行)
-                // if (!confirm(`確定要更新 ${stock.name} 的股價嗎？`)) return;
+                
+                // 設定為讀取中
+                stockStates.value[stock.id] = 'loading';
 
                 const d = await getYahooData(stock.symbol);
                 
@@ -1744,13 +1788,21 @@
                         previousClose: d.previousClose
                     });
                     
-                    // 順手更新一下時間和快照
+                    // 成功：變綠色，3秒後變回藍色
+                    stockStates.value[stock.id] = 'success';
+                    
                     lastUpdated.value = `${new Date().getHours()}:${String(new Date().getMinutes()).padStart(2, '0')}`;
                     setTimeout(saveDailySnapshot, 500);
                     
-                    alert(`✅ ${stock.name} 更新成功！\n最新價格：${formatCurrency(d.regularMarketPrice, stock.currency)}`);
+                    // 3秒後移除狀態，變回預設藍色按鈕
+                    setTimeout(() => {
+                        if (stockStates.value[stock.id] === 'success') {
+                            delete stockStates.value[stock.id];
+                        }
+                    }, 3000);
                 } else {
-                    alert(`⚠️ ${stock.name} 更新失敗\n無法取得報價，請稍後再試。`);
+                    // 失敗：變紅色驚嘆號 (長亮，直到使用者再次點擊重試)
+                    stockStates.value[stock.id] = 'error';
                 }
             };
             const fetchExchangeRate = async () => { try { const r = await fetch('https://api.exchangerate-api.com/v4/latest/USD'); const d = await r.json(); exchangeRate.value = d.rates.TWD; } catch(e){} };
@@ -1804,7 +1856,7 @@
                 // v3.3.5: XIRR (Index Bug Fix)
                 xirrValue, xirrStartDate, computeSystemXirr, xirrStartVal, xirrEndVal, xirrFlowCount, repaySource, 
                 // v3.5.0
-                updateSingleStock
+                updateSingleStock, stockStates
                 
             };
         }
@@ -1813,6 +1865,7 @@
     
 </body>
 </html>
+
 
 
 
