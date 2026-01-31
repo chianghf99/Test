@@ -615,11 +615,25 @@
                                 <span v-else>持倉 **** | 均價 ****</span>
                             </div>
                             <div class="flex gap-3">
-                                <button @click.stop="updateSingleStock(stock)" class="text-blue-500 hover:text-blue-600">
-                                    <i class="fa-solid fa-rotate"></i>
+                                <button @click.stop="updateSingleStock(stock)" 
+                                        class="transition-colors duration-200"
+                                        :class="{
+                                            'text-blue-500 hover:text-blue-600': !stockStates[stock.id], 
+                                            'text-blue-400 cursor-wait': stockStates[stock.id] === 'loading',
+                                            'text-green-500': stockStates[stock.id] === 'success',
+                                            'text-red-500 hover:text-red-700': stockStates[stock.id] === 'error'
+                                        }">
+                                    <i class="fa-solid" 
+                                       :class="{
+                                           'fa-rotate': !stockStates[stock.id], 
+                                           'fa-circle-notch fa-spin': stockStates[stock.id] === 'loading',
+                                           'fa-check': stockStates[stock.id] === 'success',
+                                           'fa-triangle-exclamation': stockStates[stock.id] === 'error'
+                                       }"></i>
                                 </button>
-                                <button @click.stop="openStockNoteModal(stock)" :class="stock.note ? 'text-yellow-500' : 'text-gray-300'" class="hover:text-yellow-600"><i class="fa-solid fa-note-sticky"></i></button>
-                                <button @click.stop="openTransModal(stock)" class="text-gray-500 hover:text-gray-900 dark:hover:text-white"><i class="fa-solid fa-calculator"></i> 補登</button>
+
+                                <button @click.stop="openStockNoteModal(stock)" ...>...</button>
+                                <button @click.stop="openTransModal(stock)" ...>...</button>
                             </div>
                         </div>
                     </div>
@@ -745,11 +759,25 @@
                                 <span v-else>持倉 **** | 均價 ****</span>
                             </div>
                             <div class="flex gap-3">
-                                <button @click.stop="updateSingleStock(stock)" class="text-blue-500 hover:text-blue-600">
-                                    <i class="fa-solid fa-rotate"></i>
+                                <button @click.stop="updateSingleStock(stock)" 
+                                        class="transition-colors duration-200"
+                                        :class="{
+                                            'text-blue-500 hover:text-blue-600': !stockStates[stock.id], 
+                                            'text-blue-400 cursor-wait': stockStates[stock.id] === 'loading',
+                                            'text-green-500': stockStates[stock.id] === 'success',
+                                            'text-red-500 hover:text-red-700': stockStates[stock.id] === 'error'
+                                        }">
+                                    <i class="fa-solid" 
+                                       :class="{
+                                           'fa-rotate': !stockStates[stock.id], 
+                                           'fa-circle-notch fa-spin': stockStates[stock.id] === 'loading',
+                                           'fa-check': stockStates[stock.id] === 'success',
+                                           'fa-triangle-exclamation': stockStates[stock.id] === 'error'
+                                       }"></i>
                                 </button>
-                                <button @click.stop="openStockNoteModal(stock)" :class="stock.note ? 'text-yellow-500' : 'text-gray-300'" class="hover:text-yellow-600"><i class="fa-solid fa-note-sticky"></i></button>
-                                <button @click.stop="openTransModal(stock)" class="text-gray-500 hover:text-gray-900 dark:hover:text-white"><i class="fa-solid fa-calculator"></i> 補登</button>
+
+                                <button @click.stop="openStockNoteModal(stock)" ...>...</button>
+                                <button @click.stop="openTransModal(stock)" ...>...</button>
                             </div>
                         </div>
                     </div>
@@ -1865,6 +1893,7 @@
     
 </body>
 </html>
+
 
 
 
