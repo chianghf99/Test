@@ -1680,76 +1680,76 @@
             };
 
             // ★★★ 請將這裡換成您剛剛部署拿到的 GAS 網址 ★★★
-            const GAS_API_URL = "https://script.google.com/macros/s/AKfycby9BVXUZBuxChMABPnvb5O-GlTMY-jVmTPbM85dTrY-g8xgc_2YMJEoixVqUyRU4EPe/exec";
+            const GAS_API_URL = "https://script.google.com/macros/s/AKfycbwQ5vkhGavaRFYKxIoAiYh6dppS9nP31uX0u01Iu9zC78RAySSwYfjnOaIEUlmo4W5kQw/exec";
 
-            // 新版：透過 GAS 機器人一次更新所有股價 (含自動新增功能)
+            // ==========================================
+            // v3.5.0 新版核心：GAS + Yahoo 雙核心串接
+            // ==========================================
+
+            // 1. 全部更新 (批次)
             const fetchPrices = async () => {
                 if (!user.value || stocks.value.length === 0) return;
                 isLoading.value = true;
                 
-                // 1. 全部設為 Loading 狀態
+                // 設為 loading 狀態
                 stocks.value.forEach(s => stockStates.value[s.id] = 'loading');
 
                 try {
-                    // 2. 收集所有股票代號
+                    // 收集所有代號 (如: 2330, 0050, AAPL)
                     const symbols = stocks.value.map(s => s.symbol).join(',');
                     
-                    // 3. 呼叫您的專屬機器人
+                    // 呼叫 GAS
                     const response = await fetch(`${GAS_API_URL}?symbols=${symbols}`);
                     const data = await response.json();
                     
+                    if (data.error) throw new Error(data.error);
+
                     const batch = db.batch();
                     let successCount = 0;
                     const ref = db.collection('users').doc(user.value.uid).collection('stocks');
 
-                    // 4. 處理回傳結果
                     stocks.value.forEach(s => {
-                        // 轉大寫比對，避免大小寫問題
-                        const stockData = data[s.symbol.toUpperCase()];
+                        // 轉大寫比對
+                        const key = s.symbol.toUpperCase();
+                        const stockData = data[key];
                         
-                        if (stockData && stockData.price && stockData.price !== "Loading...") {
-                            // 成功抓到資料
+                        if (stockData && stockData.price) {
+                            // 更新資料庫
                             batch.update(ref.doc(s.id), { 
                                 currentPrice: parseFloat(stockData.price), 
                                 previousClose: parseFloat(stockData.prev) 
                             });
                             
+                            // 介面回饋：綠勾勾
                             stockStates.value[s.id] = 'success';
                             successCount++;
-                            
-                            // 3秒後移除綠勾
-                            setTimeout(() => {
-                                if (stockStates.value[s.id] === 'success') delete stockStates.value[s.id];
+                            setTimeout(() => { 
+                                if (stockStates.value[s.id] === 'success') delete stockStates.value[s.id]; 
                             }, 3000);
                         } else {
-                            // 失敗 (可能剛新增還在跑 Loading，或是代號打錯)
-                            console.warn(`無資料: ${s.symbol}`, stockData);
+                            // 失敗：紅燈
+                            console.warn(`無資料: ${s.symbol}`);
                             stockStates.value[s.id] = 'error';
                         }
                     });
 
-                    // 5. 寫入資料庫
                     if (successCount > 0) {
                         await batch.commit();
                         setTimeout(saveDailySnapshot, 500);
                         lastUpdated.value = `${new Date().getHours()}:${String(new Date().getMinutes()).padStart(2, '0')}`;
-                        
-                        // 只有當全部都失敗時才跳 Alert，不然就安靜更新
-                        if (successCount === 0) {
-                             alert('⚠️ 更新失敗\n無法取得報價，請檢查 GAS 部署設定。');
-                        }
+                    } else {
+                        alert('⚠️ 更新失敗\n無法取得報價，請檢查 GAS 部署設定。');
                     }
 
                 } catch (err) {
                     console.error("GAS API Error:", err);
-                    alert('⚠️ 連線失敗\n請檢查您的 Apps Script網址是否正確，以及部署權限是否設為「所有人」。');
+                    alert('⚠️ 連線失敗\n請檢查 GAS 網址或權限設定。');
                     stocks.value.forEach(s => stockStates.value[s.id] = 'error');
                 }
-
                 isLoading.value = false;
             };
 
-            // 另外，單一更新也要改用這個邏輯 (為了方便，單一更新我們也走一樣的 API)
+            // 2. 單一更新 (個別)
             const updateSingleStock = async (stock) => {
                 stockStates.value[stock.id] = 'loading';
                 try {
@@ -1834,6 +1834,7 @@
     
 </body>
 </html>
+
 
 
 
