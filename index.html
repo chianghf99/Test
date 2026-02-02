@@ -1679,7 +1679,7 @@
                 }
             };
 
-            // ★★★ 雙重備援版 getYahooData (Google Finance 優先 -> Yahoo 備案) ★★★
+            // ★★★ 雙重備援版 getYahooData (已修正 NaN 問題) ★★★
             const getYahooData = async (symbol) => { 
                 let s = symbol.toUpperCase();
                 // 1. 處理代號格式
@@ -1703,30 +1703,32 @@
                     const html = await r.text();
 
                     // 使用正則表達式從 HTML 中抓取價格
-                    // Google Finance 的價格通常在 class="YMlKec fxKbKc" 裡面
                     const priceMatch = html.match(/<div class="YMlKec fxKbKc">([^<]+)<\/div>/);
                     const prevMatch = html.match(/<div class="P6K39c">([^<]+)<\/div>/); // 昨收
 
                     if (priceMatch) {
-                        // 移除逗號並轉為數字 (例如 "1,765.00" -> 1765.00)
-                        const priceStr = priceMatch[1].replace(/,/g, '').replace('NT$', '');
-                        const currentPrice = parseFloat(priceStr);
+                        // [修正重點] 這裡改用 replace(/[^0-9.]/g, '') 
+                        // 意思是：除了 0-9 和 小數點(.) 以外，其他符號($, NT$, 空白, 逗號) 通通刪除
+                        const cleanNumber = (str) => {
+                            return parseFloat(str.replace(/[^0-9.]/g, ''));
+                        };
+
+                        const currentPrice = cleanNumber(priceMatch[1]);
                         
-                        // 嘗試抓昨收，抓不到就用現價暫代
+                        // 嘗試抓昨收
                         let previousClose = currentPrice;
                         if (prevMatch) {
-                             const prevStr = prevMatch[1].replace(/,/g, '').replace('NT$', '');
-                             previousClose = parseFloat(prevStr);
+                             previousClose = cleanNumber(prevMatch[1]);
                         }
 
-                        // 成功！回傳資料
-                        return {
-                            symbol: yahooSymbol, // 維持使用 .TW 格式回傳，保持一致性
-                            regularMarketPrice: currentPrice,
-                            previousClose: previousClose
-                        };
-                    } else {
-                        console.warn(`Google Finance parsing failed for ${s}, trying Yahoo...`);
+                        // 確保解析出來的是有效數字
+                        if (!isNaN(currentPrice)) {
+                            return {
+                                symbol: yahooSymbol, 
+                                regularMarketPrice: currentPrice,
+                                previousClose: previousClose
+                            };
+                        }
                     }
                 } catch (e) {
                     console.warn(`Google Finance failed for ${s}: ${e.message}, trying Yahoo...`);
@@ -1741,7 +1743,6 @@
 
                     if (j.chart?.result?.length) {
                         const meta = j.chart.result[0].meta;
-                        // 這裡不特別檢查時間了，因為已經是備案，有資料總比沒有好
                         return { 
                             symbol: meta.symbol, 
                             regularMarketPrice: meta.regularMarketPrice, 
@@ -1874,4 +1875,5 @@
     
 </body>
 </html>
+
 
