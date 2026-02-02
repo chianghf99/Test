@@ -1679,47 +1679,60 @@
                 }
             };
 
+            // =========================================================
+            // 您的專屬 Google Apps Script 連線函式
+            // =========================================================
             const getYahooData = async (symbol) => {
-            // 1. 設定 Proxy 池 (建議將 corsproxy.io 放第一位)
-                const proxies = [
-                    'https://corsproxy.io/?',
-                    'https://api.allorigins.win/raw?url=',
-                    'https://thingproxy.freeboard.io/fetch/' 
-                ];
-
-                // 2. 準備網址 (關鍵：加上 &t= 時間戳記，強制抓新資料)
-                // 即使是第一次嘗試，也要加 timestamp，這就是您原本「沒變動」的主因
-                const targetUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&t=${Date.now()}`;
-    
-                // 3. 嘗試所有 Proxy 線路
-                for (const proxy of proxies) {
-                    try {
-                        const url = proxy + encodeURIComponent(targetUrl);
-                        const res = await fetch(url);
-                        if (!res.ok) continue; // 失敗就換下一條線路
+                // 這裡我已經填入您剛剛產生的專屬網址
+                const GAS_URL = 'https://script.google.com/macros/s/AKfycbygmGwM3B9y3rWRmpeGTfLfDpN4HgIwBY9S_olJKBHwiSFIHO3BHMpVjlCN0kwBZtLF/exec'; 
+                
+                // 預設加上 .TW (如果您輸入 2330，變成 2330.TW)
+                let targetSymbol = symbol;
+                if (!targetSymbol.includes('.')) targetSymbol += '.TW';
             
-                        const data = await res.json();
-                        if (data.chart && data.chart.result) {
-                            const meta = data.chart.result[0].meta;
-                            return {
-                                symbol: meta.symbol,
-                                regularMarketPrice: meta.regularMarketPrice,
-                                previousClose: meta.chartPreviousClose || meta.previousClose
-                            };
+                try {
+                    // 組合網址：呼叫 GAS，並加上時間戳記 &t= 防止快取
+                    const url = `${GAS_URL}?symbol=${targetSymbol}&t=${Date.now()}`;
+                    
+                    const res = await fetch(url);
+                    const data = await res.json();
+            
+                    // 檢查回傳資料是否有效
+                    if (data.chart && data.chart.result) {
+                        const meta = data.chart.result[0].meta;
+                        return {
+                            symbol: meta.symbol,
+                            regularMarketPrice: meta.regularMarketPrice,
+                            previousClose: meta.chartPreviousClose || meta.previousClose
+                        };
+                    } else {
+                        // 如果原本是用 .TW 抓失敗 (例如晶呈科技 4768)，嘗試自動切換成 .TWO (上櫃)
+                        if (targetSymbol.endsWith('.TW')) {
+                            const symbolOTC = targetSymbol.replace('.TW', '.TWO');
+                            console.log(`.TW 失敗，嘗試切換為上櫃代號: ${symbolOTC}`);
+                            
+                            // 再次呼叫自己 (遞迴)，這次用 .TWO 去問 Google
+                            // 注意：傳入原本的代號去除後綴，讓函式內部的邏輯去處理
+                            // 這裡我們直接遞迴呼叫 helper 或者直接組網址，為了簡單，我們直接用 .TWO 重抓一次
+                            
+                            const url2 = `${GAS_URL}?symbol=${symbolOTC}&t=${Date.now()}`;
+                            const res2 = await fetch(url2);
+                            const data2 = await res2.json();
+                            
+                            if (data2.chart && data2.chart.result) {
+                                const meta = data2.chart.result[0].meta;
+                                return {
+                                    symbol: meta.symbol,
+                                    regularMarketPrice: meta.regularMarketPrice,
+                                    previousClose: meta.chartPreviousClose || meta.previousClose
+                                };
+                            }
                         }
-                    } catch (e) { console.warn(`Proxy ${proxy} failed for ${symbol}`); }
+                    }
+                } catch (err) {
+                    console.error(`Google Proxy 連線錯誤 (${symbol}):`, err);
                 }
-            
-                // 4. [自動修復] 如果 .TW 失敗，自動嘗試切換成 .TWO (上櫃)
-                if (symbol.endsWith('.TW')) {
-                    const symbolOTC = symbol.replace('.TW', '.TWO');
-                    console.log(`Retry with .TWO for ${symbolOTC}`);
-        
-                    // 遞迴呼叫自己，改查 .TWO
-                    // 注意：這裡直接 return，會重新走上面的 Proxy 流程
-                    return await getYahooData(symbolOTC);
-                }
-            
+                
                 return null; // 真的都抓不到
             };
             
@@ -1893,4 +1906,5 @@
     
 </body>
 </html>
+
 
