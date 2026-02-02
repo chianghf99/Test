@@ -1679,50 +1679,46 @@
                 }
             };
 
-            // ★★★ 雙重備援版 getYahooData (已修正 NaN 問題) ★★★
+            // ★★★ 三段式強韌版 getYahooData (Google -> Yahoo上市 -> Yahoo上櫃/興櫃) ★★★
             const getYahooData = async (symbol) => { 
                 let s = symbol.toUpperCase();
-                // 1. 處理代號格式
+                
+                // 1. 預設代號處理
                 let yahooSymbol = s;
                 let googleSymbol = s;
                 
-                // 如果是台股代號 (如 2330)
+                // 如果是台股代號 (如 2330, 4768)
                 if (/^\d{4,6}[A-Z]?$/.test(s)) {
-                    yahooSymbol = s + '.TW';
-                    googleSymbol = s + ':TPE'; // Google Finance 的格式是 2330:TPE
+                    yahooSymbol = s + '.TW';    // Yahoo 預設先猜上市 (.TW)
+                    googleSymbol = s + ':TPE';  // Google 格式
                 }
 
                 // 您的專屬 GAS 代理
                 const myGasProxy = 'https://script.google.com/macros/s/AKfycbyN4Yib6hdb01-XHP7jlAHFuSkqBd7iqqRd80pDeMia_SpJQ7SM6MPxhaBwF6vJ-kY/exec?url=';
 
-                // --- 策略 A (優先): 嘗試 Google Finance 網頁爬蟲 ---
+                // =========================================================
+                // 🛑 第一關：嘗試 Google Finance 網頁爬蟲 (最優先)
+                // =========================================================
                 try {
                     const targetUrl = `https://www.google.com/finance/quote/${googleSymbol}`;
                     const url = myGasProxy + encodeURIComponent(targetUrl);
                     const r = await fetch(url);
                     const html = await r.text();
 
-                    // 使用正則表達式從 HTML 中抓取價格
+                    // 使用正則表達式抓取價格
                     const priceMatch = html.match(/<div class="YMlKec fxKbKc">([^<]+)<\/div>/);
                     const prevMatch = html.match(/<div class="P6K39c">([^<]+)<\/div>/); // 昨收
 
                     if (priceMatch) {
-                        // [修正重點] 這裡改用 replace(/[^0-9.]/g, '') 
-                        // 意思是：除了 0-9 和 小數點(.) 以外，其他符號($, NT$, 空白, 逗號) 通通刪除
-                        const cleanNumber = (str) => {
-                            return parseFloat(str.replace(/[^0-9.]/g, ''));
-                        };
-
+                        // 清理價格：移除所有非數字和小數點的符號 (如 "NT$", ",", "$")
+                        const cleanNumber = (str) => parseFloat(str.replace(/[^0-9.]/g, ''));
                         const currentPrice = cleanNumber(priceMatch[1]);
                         
-                        // 嘗試抓昨收
                         let previousClose = currentPrice;
-                        if (prevMatch) {
-                             previousClose = cleanNumber(prevMatch[1]);
-                        }
+                        if (prevMatch) previousClose = cleanNumber(prevMatch[1]);
 
-                        // 確保解析出來的是有效數字
                         if (!isNaN(currentPrice)) {
+                            // ★ Google 成功抓到！直接回傳，程式結束
                             return {
                                 symbol: yahooSymbol, 
                                 regularMarketPrice: currentPrice,
@@ -1731,11 +1727,14 @@
                         }
                     }
                 } catch (e) {
-                    console.warn(`Google Finance failed for ${s}: ${e.message}, trying Yahoo...`);
+                    console.warn(`Google Finance failed for ${s}, trying Yahoo...`);
                 }
 
-                // --- 策略 B (備案): 嘗試 Yahoo Finance API (5分K) ---
+                // =========================================================
+                // 🛑 第二關：嘗試 Yahoo Finance API (預設 .TW)
+                // =========================================================
                 try {
+                    // 這裡改用 5分鐘線 (interval=5m) 確保盤中資料最新
                     const targetUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${yahooSymbol}?range=1d&interval=5m&events=div,splits&t=${Date.now()}`;
                     const url = myGasProxy + encodeURIComponent(targetUrl);
                     const r = await fetch(url);
@@ -1743,6 +1742,7 @@
 
                     if (j.chart?.result?.length) {
                         const meta = j.chart.result[0].meta;
+                        // ★ Yahoo (.TW) 成功抓到！回傳
                         return { 
                             symbol: meta.symbol, 
                             regularMarketPrice: meta.regularMarketPrice, 
@@ -1750,9 +1750,39 @@
                         };
                     }
                 } catch (e) {
-                    console.error(`Yahoo API also failed for ${s}: ${e.message}`);
+                    // 這裡先不報錯，因為我們要給它機會去試 .TWO
+                    console.warn(`Yahoo API (.TW) failed for ${s}, checking if .TWO works...`);
                 }
 
+                // =========================================================
+                // 🛑 第三關：嘗試 Yahoo Finance API (.TWO 上櫃/興櫃備案)
+                // =========================================================
+                // 只有當原本是 .TW 失敗時，才嘗試 .TWO
+                if (yahooSymbol.endsWith('.TW')) {
+                    try {
+                        const twoSymbol = yahooSymbol.replace('.TW', '.TWO');
+                        const targetUrl2 = `https://query1.finance.yahoo.com/v8/finance/chart/${twoSymbol}?range=1d&interval=5m&events=div,splits&t=${Date.now()}`;
+                        const url2 = myGasProxy + encodeURIComponent(targetUrl2);
+                        const r2 = await fetch(url2);
+                        const j2 = await r2.json();
+
+                        if (j2.chart?.result?.length) {
+                            const meta = j2.chart.result[0].meta;
+                            // ★ Yahoo (.TWO) 成功抓到！(針對 4768 這種股票)
+                            console.log(`Success! Found ${s} in Yahoo OTC market (.TWO)`);
+                            return { 
+                                symbol: meta.symbol, 
+                                regularMarketPrice: meta.regularMarketPrice, 
+                                previousClose: meta.chartPreviousClose || meta.previousClose 
+                            };
+                        }
+                    } catch (e) {
+                        console.error(`Yahoo API (.TWO) also failed for ${s}`);
+                    }
+                }
+
+                // 如果三關全過都沒抓到，宣告失敗
+                console.error(`All sources failed for ${s}`);
                 return null; 
             };
             
@@ -1875,5 +1905,6 @@
     
 </body>
 </html>
+
 
 
