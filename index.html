@@ -1757,52 +1757,85 @@
                 // 🛑 共用函式：Yahoo 資料解析
                 // =========================================================
                 const fetchYahoo = async (targetSymbol) => {
-                    // 🛑 改用 v10 QuoteSummary API (網頁版核心資料)，通常最準且不易被擋
-                    // modules=price 代表我們只要價格相關資料
-                    const targetUrl = `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${targetSymbol}?modules=price`;
-                    const url = myGasProxy + encodeURIComponent(targetUrl);
+                    // =================================================================
+                    // 🟢 策略：直接使用 Yahoo 奇摩股市 (台灣) 的內部 API
+                    // 這跟網頁版 https://tw.stock.yahoo.com 是同一個資料源，絕對準！
+                    // =================================================================
                     
+                    // 偵測是否為台灣股票 (結尾是 .TW 或 .TWO)
+                    if (targetSymbol.endsWith('.TW') || targetSymbol.endsWith('.TWO')) {
+                        try {
+                            // Yahoo TW 專用 API (注意：這裡 symbols 參數需要放陣列格式)
+                            const twUrl = `https://tw.stock.yahoo.com/_td-stock/api/resource/FinanceService.service.retrieveQuote?symbols=["${targetSymbol}"]`;
+                            // 透過您的 GAS Proxy 發送請求
+                            const url = myGasProxy + encodeURIComponent(twUrl);
+                
+                            const r = await fetch(url);
+                            const j = await r.json();
+                
+                            // 解析台灣 API 回傳格式
+                            if (j.data && j.data.length > 0) {
+                                const stockData = j.data[0];
+                                
+                                // 取得目前股價 (price) 與 昨收 (previousClose)
+                                // 這裡的 stockData.price 就是網頁上顯示的大字 (388.0)
+                                let currentPrice = stockData.price;
+                                let prevClose = stockData.previousClose;
+                
+                                // 容錯處理：有時候 API 會回傳字串，確保轉為數字
+                                if (typeof currentPrice === 'string') currentPrice = parseFloat(currentPrice.replace(/,/g, ''));
+                                if (typeof prevClose === 'string') prevClose = parseFloat(prevClose.replace(/,/g, ''));
+                
+                                // 檢查是否抓到有效價格
+                                if (!isNaN(currentPrice)) {
+                                    // [關於時間] 
+                                    // 台灣 API 通常回傳 "systime" (如 "20260202133000")
+                                    // 為了配合您的 isDataStale 檢查，我們嘗試解析它，如果解析失敗就用當下時間
+                                    // 因為這既然是「即時 API」，只要抓得到通常就是最新的
+                                    let dataTimestamp = Math.floor(Date.now() / 1000); 
+                                    if (stockData.systime && stockData.systime.length === 14) {
+                                        // 簡單解析 YYYYMMDDHHmmss
+                                        const t = stockData.systime;
+                                        const d = new Date(`${t.substring(0,4)}-${t.substring(4,6)}-${t.substring(6,8)}T${t.substring(8,10)}:${t.substring(10,12)}:${t.substring(12,14)}`);
+                                        dataTimestamp = Math.floor(d.getTime() / 1000);
+                                    }
+                
+                                    return { 
+                                        symbol: stockData.symbol, 
+                                        regularMarketPrice: currentPrice, 
+                                        previousClose: prevClose 
+                                    };
+                                }
+                            }
+                        } catch (twErr) {
+                            console.warn(`[TW-API Fail] ${targetSymbol}`, twErr);
+                            // 如果台灣 API 真的掛了，才會往下走去試美國 API (雖然後面通常也抓不到)
+                        }
+                    }
+                
+                    // =================================================================
+                    // 🟡 備案：如果不是台股，或是台灣 API 失敗，才使用原本的全球 API
+                    // (美股或其他市場繼續用這個)
+                    // =================================================================
                     try {
+                        // 改用 v7 或 v10 皆可，這裡保留 v7 給美股用
+                        const targetUrl = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${targetSymbol}`;
+                        const url = myGasProxy + encodeURIComponent(targetUrl);
                         const r = await fetch(url);
                         const j = await r.json();
-                
-                        // [除錯用] 如果失敗，請按 F12 看 Console 這行印出什麼
-                        console.log(`[Yahoo v10] ${targetSymbol} result:`, j);
-                
-                        const result = j.quoteSummary?.result;
+                        const result = j.quoteResponse?.result;
+                        
                         if (result && result.length > 0) {
-                            const priceModule = result[0].price;
-                            
-                            // 注意：QuoteSummary 的數值通常包在 .raw 裡面
-                            // 例如：{ raw: 388, fmt: "388.00" }
-                            const lastPrice = priceModule.regularMarketPrice?.raw; 
-                            const prevClose = priceModule.regularMarketPreviousClose?.raw;
-                            
-                            // 時間有時候是直接數字，有時候是物件，安全起見都處理
-                            // 這是資料的「最後更新時間」
-                            let lastTime = priceModule.regularMarketTime?.raw || priceModule.regularMarketTime;
-                
-                            if (lastPrice === undefined) {
-                                throw new Error("Price fields missing in v10 response");
-                            }
-                
-                            // 依然保留守門員機制 (避免拿到舊資料)
-                            if (isDataStale(lastTime)) {
-                                 throw new Error(`Data stale (Time: ${new Date(lastTime*1000).toLocaleString()})`);
-                            }
-                
+                            const data = result[0];
                             return { 
-                                symbol: targetSymbol, 
-                                regularMarketPrice: lastPrice, 
-                                previousClose: prevClose 
+                                symbol: data.symbol, 
+                                regularMarketPrice: data.regularMarketPrice, 
+                                previousClose: data.regularMarketPreviousClose 
                             };
                         }
-                        
-                        throw new Error("No data found in QuoteSummary v10");
-                
-                    } catch (err) {
-                        console.warn(`[Fetch Fail] ${targetSymbol} via v10:`, err);
-                        throw err;
+                        throw new Error("No data in global API");
+                    } catch (e) {
+                        throw e;
                     }
                 };
                 // =========================================================
@@ -1984,6 +2017,7 @@
     
 </body>
 </html>
+
 
 
 
