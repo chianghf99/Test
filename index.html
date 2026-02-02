@@ -1790,15 +1790,24 @@
                 
                 isLoading.value = false;
             };
-            // 單一更新功能
+            // =========================================================
+            // 偵錯版單一更新：更新成功會直接跳出視窗告訴你抓到多少錢
+            // =========================================================
             const updateSingleStock = async (stock) => {
                 if (!user.value) return;
             
+                // 1. 顯示載入中
                 stockStates.value[stock.id] = 'loading';
             
+                // 2. 呼叫核心函式抓資料
                 const data = await getYahooData(stock.symbol);
             
                 if (data && data.success) {
+                    // ★★★ 偵錯監聽站 ★★★
+                    // 這裡會跳出視窗，告訴我們程式到底看到了什麼
+                    alert(`【偵錯報告】\n股票：${stock.name} (${stock.symbol})\n抓到的股價：${data.price}\n昨收價：${data.prevClose}`);
+            
+                    // 3. 寫入資料庫
                     await db.collection('users').doc(user.value.uid).collection('stocks').doc(stock.id).update({
                         currentPrice: data.price,
                         previousClose: data.prevClose
@@ -1806,11 +1815,13 @@
                     
                     stockStates.value[stock.id] = 'success';
                     
+                    // 3秒後消除勾勾
                     setTimeout(() => {
                          if (stockStates.value[stock.id] === 'success') delete stockStates.value[stock.id];
                     }, 3000);
                 } else {
                     stockStates.value[stock.id] = 'error';
+                    alert(`更新失敗！無法取得 ${stock.name} 的資料。`);
                 }
             };
             const fetchExchangeRate = async () => { try { const r = await fetch('https://api.exchangerate-api.com/v4/latest/USD'); const d = await r.json(); exchangeRate.value = d.rates.TWD; } catch(e){} };
@@ -1873,6 +1884,7 @@
     
 </body>
 </html>
+
 
 
 
