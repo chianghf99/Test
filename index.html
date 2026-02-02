@@ -1679,63 +1679,50 @@
                 }
             };
 
-           // =========================================================
-            // 新版核心函式: 透過 Google Apps Script 抓取股價
+            // =========================================================
+            // 升級版: 使用 Quote API (即時報價) + 交易時間驗證
             // =========================================================
             const getYahooData = async (inputSymbol) => {
-                // ★★★ 請將下面這行引號內換成您剛剛複製的 Google Script 網址 ★★★
+                // ★★★ 請確認這行是您剛剛部署好的 GAS 網址 ★★★
                 const GAS_URL = 'https://script.google.com/macros/s/AKfycbz7tANdyUp9fj0bQ-49WVhxlyT2h2dhAZzFeneZa14H8i4ScwlI6LYwo4daYsfaL0D4/exec'; 
                 
-                // 1. 處理代號規則
-                // 如果是數字開頭且沒有點 (例如 2330)，預設視為台股上市，加上 .TW
-                // 如果是美股 (例如 NVDA, TSLA)，保持原樣
-                let symbol = inputSymbol;
-                if (/^\d{3,4}$/.test(symbol)) {
-                    symbol += '.TW';
-                }
-            
-                // 定義抓取函式 (內部使用)
-                const fetchFromGas = async (targetSym) => {
+                // 內部函式：呼叫 GAS
+                const callGas = async (sym) => {
                     try {
-                        // 加上時間戳記 &t= 防止瀏覽器偷懶用舊資料
-                        const url = `${GAS_URL}?symbol=${targetSym}&t=${Date.now()}`;
+                        const url = `${GAS_URL}?symbol=${sym}&t=${Date.now()}`;
                         const res = await fetch(url);
                         const data = await res.json();
                         
-                        if (data.chart && data.chart.result) {
-                            const meta = data.chart.result[0].meta;
+                        // ★ 解析 Quote API 的格式 (跟 chart 不一樣)
+                        if (data.quoteResponse && data.quoteResponse.result && data.quoteResponse.result.length > 0) {
+                            const q = data.quoteResponse.result[0];
                             return {
                                 success: true,
-                                price: meta.regularMarketPrice,
-                                prevClose: meta.chartPreviousClose || meta.previousClose
+                                price: q.regularMarketPrice,           // 現價
+                                prevClose: q.regularMarketPreviousClose, // 昨收
+                                // 把交易時間轉成人類看得懂的格式 (例如 14:30:00)
+                                time: new Date(q.regularMarketTime * 1000).toLocaleString() 
                             };
                         }
                     } catch (e) {
-                        console.error(`Fetch error for ${targetSym}:`, e);
+                        console.error(`連線失敗 (${sym}):`, e);
                     }
                     return { success: false };
                 };
             
-                // 2. 開始抓取
-                // 第一試：直接抓 (例如 2330.TW 或 NVDA)
-                let result = await fetchFromGas(symbol);
-                
-                if (result.success) {
-                    return result;
-                }
+                // --- 判斷邏輯 (台股加 .TW / .TWO，美股不動) ---
+                if (/^\d+$/.test(inputSymbol)) {
+                    // 先試 .TW (上市)
+                    let result = await callGas(inputSymbol + '.TW');
+                    if (result.success) return result;
             
-                // 3. 自動救援機制 (針對台股上櫃)
-                // 如果 2330.TW 失敗，且它是 .TW 結尾，那嘗試改成 .TWO (上櫃) 再抓一次
-                if (symbol.endsWith('.TW')) {
-                    const otcSymbol = symbol.replace('.TW', '.TWO');
-                    console.log(`Retrying with OTC: ${otcSymbol}`);
-                    result = await fetchFromGas(otcSymbol);
-                    if (result.success) {
-                        return result;
-                    }
+                    // 失敗則試 .TWO (上櫃)
+                    console.log(`${inputSymbol}.TW 失敗，嘗試 .TWO...`);
+                    return await callGas(inputSymbol + '.TWO');
+                } else {
+                    // 美股
+                    return await callGas(inputSymbol);
                 }
-            
-                return null; // 真的抓不到
             };
             const autoFetchName = async () => { const s = form.value.symbol; if (!s) return; if (/^\d/.test(s)) form.value.currency = 'TWD'; else if (/^[A-Za-z]+$/.test(s)) form.value.currency = 'USD'; if (!form.value.name) form.value.name = '查詢中...'; const d = await getYahooData(s); if (d) { if (form.value.name === '查詢中...') form.value.name = d.symbol; form.value.currentPrice = d.regularMarketPrice; form.value.previousClose = d.previousClose; } else { if (form.value.name === '查詢中...') form.value.name = ''; alert('查無代號'); } };
             const autoFetchTransName = async () => { const s = transForm.value.symbol; if (!s) return; const localStock = stocks.value.find(st => st.symbol && st.symbol.toUpperCase() === s.toUpperCase()); if (localStock) { transForm.value.name = localStock.name; form.value.currency = localStock.currency; return; } if (/^\d/.test(s)) form.value.currency = 'TWD'; else if (/^[A-Za-z]+$/.test(s)) form.value.currency = 'USD'; if (!transForm.value.name) transForm.value.name = '查詢中...'; const d = await getYahooData(s); if (d) { if (transForm.value.name === '查詢中...') transForm.value.name = d.symbol; } else { if (transForm.value.name === '查詢中...') transForm.value.name = ''; } };
@@ -1790,38 +1777,28 @@
                 
                 isLoading.value = false;
             };
-            // =========================================================
-            // 偵錯版單一更新：更新成功會直接跳出視窗告訴你抓到多少錢
-            // =========================================================
+            // 偵錯版: 顯示交易時間
             const updateSingleStock = async (stock) => {
                 if (!user.value) return;
-            
-                // 1. 顯示載入中
                 stockStates.value[stock.id] = 'loading';
             
-                // 2. 呼叫核心函式抓資料
                 const data = await getYahooData(stock.symbol);
             
                 if (data && data.success) {
-                    // ★★★ 偵錯監聽站 ★★★
-                    // 這裡會跳出視窗，告訴我們程式到底看到了什麼
-                    alert(`【偵錯報告】\n股票：${stock.name} (${stock.symbol})\n抓到的股價：${data.price}\n昨收價：${data.prevClose}`);
+                    // ★★★ 證據時刻 ★★★
+                    // 視窗會顯示：抓到的時間是幾點幾分。
+                    // 如果時間是今天的 13:30 (台股) 或凌晨 (美股)，那就代表資料絕對是新的！
+                    alert(`【更新成功】\n股票：${stock.name}\n現價：${data.price}\n資料時間：${data.time}`);
             
-                    // 3. 寫入資料庫
                     await db.collection('users').doc(user.value.uid).collection('stocks').doc(stock.id).update({
                         currentPrice: data.price,
                         previousClose: data.prevClose
                     });
-                    
                     stockStates.value[stock.id] = 'success';
-                    
-                    // 3秒後消除勾勾
-                    setTimeout(() => {
-                         if (stockStates.value[stock.id] === 'success') delete stockStates.value[stock.id];
-                    }, 3000);
+                    setTimeout(() => { if (stockStates.value[stock.id] === 'success') delete stockStates.value[stock.id]; }, 3000);
                 } else {
                     stockStates.value[stock.id] = 'error';
-                    alert(`更新失敗！無法取得 ${stock.name} 的資料。`);
+                    alert(`更新失敗，找不到 ${stock.symbol}`);
                 }
             };
             const fetchExchangeRate = async () => { try { const r = await fetch('https://api.exchangerate-api.com/v4/latest/USD'); const d = await r.json(); exchangeRate.value = d.rates.TWD; } catch(e){} };
@@ -1884,6 +1861,7 @@
     
 </body>
 </html>
+
 
 
 
