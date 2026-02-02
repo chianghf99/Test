@@ -1788,31 +1788,26 @@
             
             const autoFetchName = async () => { const s = form.value.symbol; if (!s) return; if (/^\d/.test(s)) form.value.currency = 'TWD'; else if (/^[A-Za-z]+$/.test(s)) form.value.currency = 'USD'; if (!form.value.name) form.value.name = '查詢中...'; const d = await getYahooData(s); if (d) { if (form.value.name === '查詢中...') form.value.name = d.symbol; form.value.currentPrice = d.regularMarketPrice; form.value.previousClose = d.previousClose; } else { if (form.value.name === '查詢中...') form.value.name = ''; alert('查無代號'); } };
             const autoFetchTransName = async () => { const s = transForm.value.symbol; if (!s) return; const localStock = stocks.value.find(st => st.symbol && st.symbol.toUpperCase() === s.toUpperCase()); if (localStock) { transForm.value.name = localStock.name; form.value.currency = localStock.currency; return; } if (/^\d/.test(s)) form.value.currency = 'TWD'; else if (/^[A-Za-z]+$/.test(s)) form.value.currency = 'USD'; if (!transForm.value.name) transForm.value.name = '查詢中...'; const d = await getYahooData(s); if (d) { if (transForm.value.name === '查詢中...') transForm.value.name = d.symbol; } else { if (transForm.value.name === '查詢中...') transForm.value.name = ''; } };
-            // [修改] 序列化更新股價 (含視覺回饋 + 統計視窗)
+            // [修改] 序列化更新股價 (失敗時紅色驚嘆號不消失)
             const fetchPrices = async () => {
                 if (!user.value || stocks.value.length === 0) return;
-                isLoading.value = true; // 總體讀取狀態 (上方更新按鈕轉圈)
+                isLoading.value = true;
                 
                 const batch = db.batch();
                 let hasUpdates = false;
                 let successCount = 0;
                 let failCount = 0;
 
-                // 依序更新每一檔
                 for (const stock of stocks.value) {
-                    // ★ 1. 設定該股票圖示為「旋轉中」
-                    stockStates.value[stock.id] = 'loading'; 
+                    stockStates.value[stock.id] = 'loading'; // 開始轉圈圈
 
                     try {
-                        // 呼叫 getYahooData (使用我們剛剛修好的 Google 優先 + 正則清理版)
                         const data = await getYahooData(stock.symbol);
                         
                         if (data) {
-                            // 更新畫面數據
                             stock.currentPrice = data.regularMarketPrice;
                             stock.previousClose = data.previousClose;
 
-                            // 準備寫入資料庫
                             const ref = db.collection('users').doc(user.value.uid).collection('stocks').doc(stock.id);
                             batch.update(ref, { 
                                 currentPrice: data.regularMarketPrice, 
@@ -1821,26 +1816,23 @@
                             
                             hasUpdates = true;
                             successCount++;
-                            
-                            // ★ 2. 成功：設定圖示為「綠色勾勾」
-                            stockStates.value[stock.id] = 'success';
+                            stockStates.value[stock.id] = 'success'; // 綠色勾勾
                         } else {
                             failCount++;
-                            // ★ 3. 失敗：設定圖示為「紅色驚嘆號」
-                            stockStates.value[stock.id] = 'error';
+                            stockStates.value[stock.id] = 'error'; // 紅色驚嘆號
                         }
                     } catch (err) {
                         console.error(`Update failed for ${stock.symbol}`, err);
                         failCount++;
-                        // ★ 3. 失敗：設定圖示為「紅色驚嘆號」
-                        stockStates.value[stock.id] = 'error';
+                        stockStates.value[stock.id] = 'error'; // 紅色驚嘆號
                     }
 
-                    // ★ 4. 設定 3 秒後消除圖示狀態 (讓綠勾勾顯示一下再消失)
+                    // [修改重點] 3秒後只消除「成功」的圖示，失敗的保留
                     setTimeout(() => {
-                        if (stockStates.value[stock.id] === 'success' || stockStates.value[stock.id] === 'error') {
+                        if (stockStates.value[stock.id] === 'success') {
                             stockStates.value[stock.id] = null; 
                         }
+                        // 注意：這裡移除了 error 的清除邏輯，所以紅色驚嘆號會一直顯示
                     }, 3000);
                 }
 
@@ -1852,19 +1844,15 @@
                 lastUpdated.value = `${new Date().getHours()}:${String(new Date().getMinutes()).padStart(2, '0')}`;
                 isLoading.value = false;
 
-                // 顯示統計結果
                 alert(`更新完成！\n\n✅ 成功: ${successCount} 筆\n❌ 失敗: ${failCount} 筆`);
             };
-            // (參考用，通常不用大改，只要確保有 await getYahooData 即可)
-            // [修改] 單一股票更新 (含視覺回饋)
+            // [修改] 單一股票更新 (失敗時紅色驚嘆號不消失)
             const updateSingleStock = async (stock) => {
                 if (!user.value) return;
                 
-                // ★ 1. 設定圖示狀態為「旋轉中」
                 stockStates.value[stock.id] = 'loading';
 
                 try {
-                    // 呼叫 getYahooData
                     const data = await getYahooData(stock.symbol);
 
                     if (data) {
@@ -1876,22 +1864,19 @@
                             previousClose: data.previousClose
                         });
                         
-                        // ★ 2. 成功：設定為「綠色勾勾」
                         stockStates.value[stock.id] = 'success';
                         saveDailySnapshot();
                     } else {
-                        // ★ 3. 失敗：設定為「紅色驚嘆號」
                         stockStates.value[stock.id] = 'error';
                     }
                 } catch (e) {
                     console.error(e);
-                    // ★ 3. 失敗：設定為「紅色驚嘆號」
                     stockStates.value[stock.id] = 'error';
                 }
 
-                // ★ 4. 設定 3 秒後消除圖示
+                // [修改重點] 3秒後只消除「成功」的圖示，失敗的保留
                 setTimeout(() => {
-                    if (stockStates.value[stock.id] === 'success' || stockStates.value[stock.id] === 'error') {
+                    if (stockStates.value[stock.id] === 'success') {
                         stockStates.value[stock.id] = null;
                     }
                 }, 3000);
@@ -1956,6 +1941,7 @@
     
 </body>
 </html>
+
 
 
 
