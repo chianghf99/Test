@@ -1758,17 +1758,20 @@
             const autoFetchName = async () => { const s = form.value.symbol; if (!s) return; if (/^\d/.test(s)) form.value.currency = 'TWD'; else if (/^[A-Za-z]+$/.test(s)) form.value.currency = 'USD'; if (!form.value.name) form.value.name = '查詢中...'; const d = await getYahooData(s); if (d) { if (form.value.name === '查詢中...') form.value.name = d.symbol; form.value.currentPrice = d.regularMarketPrice; form.value.previousClose = d.previousClose; } else { if (form.value.name === '查詢中...') form.value.name = ''; alert('查無代號'); } };
             const autoFetchTransName = async () => { const s = transForm.value.symbol; if (!s) return; const localStock = stocks.value.find(st => st.symbol && st.symbol.toUpperCase() === s.toUpperCase()); if (localStock) { transForm.value.name = localStock.name; form.value.currency = localStock.currency; return; } if (/^\d/.test(s)) form.value.currency = 'TWD'; else if (/^[A-Za-z]+$/.test(s)) form.value.currency = 'USD'; if (!transForm.value.name) transForm.value.name = '查詢中...'; const d = await getYahooData(s); if (d) { if (transForm.value.name === '查詢中...') transForm.value.name = d.symbol; } else { if (transForm.value.name === '查詢中...') transForm.value.name = ''; } };
             // [修改] 序列化更新股價 (避免同時發送太多請求灌爆 GAS)
+            // [修改] 序列化更新股價 (包含成功/失敗統計視窗)
             const fetchPrices = async () => {
                 if (!user.value || stocks.value.length === 0) return;
                 isLoading.value = true;
                 
                 const batch = db.batch();
                 let hasUpdates = false;
+                let successCount = 0; // 新增：成功計數器
+                let failCount = 0;    // 新增：失敗計數器
 
                 // 使用 for...of 迴圈來「依序」等待每一個請求
                 for (const stock of stocks.value) {
                     try {
-                        // 呼叫我們剛剛改好的雙重備援 getYahooData
+                        // 呼叫雙重備援 getYahooData
                         const data = await getYahooData(stock.symbol);
                         
                         if (data) {
@@ -1782,10 +1785,15 @@
                                 currentPrice: data.regularMarketPrice, 
                                 previousClose: data.previousClose 
                             });
+                            
                             hasUpdates = true;
+                            successCount++; // 成功 +1
+                        } else {
+                            failCount++;    // 沒抓到資料算失敗
                         }
                     } catch (err) {
                         console.error(`Update failed for ${stock.symbol}`, err);
+                        failCount++;        // 發生錯誤算失敗
                     }
                 }
 
@@ -1796,6 +1804,9 @@
                 
                 lastUpdated.value = `${new Date().getHours()}:${String(new Date().getMinutes()).padStart(2, '0')}`;
                 isLoading.value = false;
+
+                // [新增] 顯示統計結果視窗
+                alert(`更新完成！\n\n✅ 成功: ${successCount} 筆\n❌ 失敗: ${failCount} 筆`);
             };
             // (參考用，通常不用大改，只要確保有 await getYahooData 即可)
             const updateSingleStock = async (stock) => {
@@ -1863,3 +1874,4 @@
     
 </body>
 </html>
+
