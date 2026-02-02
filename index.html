@@ -1679,170 +1679,137 @@
                 }
             };
 
+           // =========================================================
+            // 新版核心函式: 透過 Google Apps Script 抓取股價
             // =========================================================
-            // 您的專屬 Google Apps Script 連線函式
-            // =========================================================
-            const getYahooData = async (symbol) => {
-                // 這裡我已經填入您剛剛產生的專屬網址
-                const GAS_URL = 'https://script.google.com/macros/s/AKfycbwj3Q6Ct_BKAt2j1H6IbCTLtz6zlTFFpOAT2ro3Ha84sRy9tsRcrkydsNFO-hZHZ-U/exec'; 
+            const getYahooData = async (inputSymbol) => {
+                // ★★★ 請將下面這行引號內換成您剛剛複製的 Google Script 網址 ★★★
+                const GAS_URL = 'https://script.google.com/macros/s/AKfycby4Ok_sI1vGjQDHRRjlHwKUWSBSCGQB2m-j1XWiV8nDRzs1yVSDhyosS-n6M9_ksN7r/exec'; 
                 
-                // 預設加上 .TW (如果您輸入 2330，變成 2330.TW)
-                let targetSymbol = symbol;
-                if (!targetSymbol.includes('.')) targetSymbol += '.TW';
-            
-                try {
-                    // 組合網址：呼叫 GAS，並加上時間戳記 &t= 防止快取
-                    const url = `${GAS_URL}?symbol=${targetSymbol}&t=${Date.now()}`;
-                    
-                    const res = await fetch(url);
-                    const data = await res.json();
-            
-                    // 檢查回傳資料是否有效
-                    if (data.chart && data.chart.result) {
-                        const meta = data.chart.result[0].meta;
-                        return {
-                            symbol: meta.symbol,
-                            regularMarketPrice: meta.regularMarketPrice,
-                            previousClose: meta.chartPreviousClose || meta.previousClose
-                        };
-                    } else {
-                        // 如果原本是用 .TW 抓失敗 (例如晶呈科技 4768)，嘗試自動切換成 .TWO (上櫃)
-                        if (targetSymbol.endsWith('.TW')) {
-                            const symbolOTC = targetSymbol.replace('.TW', '.TWO');
-                            console.log(`.TW 失敗，嘗試切換為上櫃代號: ${symbolOTC}`);
-                            
-                            // 再次呼叫自己 (遞迴)，這次用 .TWO 去問 Google
-                            // 注意：傳入原本的代號去除後綴，讓函式內部的邏輯去處理
-                            // 這裡我們直接遞迴呼叫 helper 或者直接組網址，為了簡單，我們直接用 .TWO 重抓一次
-                            
-                            const url2 = `${GAS_URL}?symbol=${symbolOTC}&t=${Date.now()}`;
-                            const res2 = await fetch(url2);
-                            const data2 = await res2.json();
-                            
-                            if (data2.chart && data2.chart.result) {
-                                const meta = data2.chart.result[0].meta;
-                                return {
-                                    symbol: meta.symbol,
-                                    regularMarketPrice: meta.regularMarketPrice,
-                                    previousClose: meta.chartPreviousClose || meta.previousClose
-                                };
-                            }
-                        }
-                    }
-                } catch (err) {
-                    console.error(`Google Proxy 連線錯誤 (${symbol}):`, err);
+                // 1. 處理代號規則
+                // 如果是數字開頭且沒有點 (例如 2330)，預設視為台股上市，加上 .TW
+                // 如果是美股 (例如 NVDA, TSLA)，保持原樣
+                let symbol = inputSymbol;
+                if (/^\d{3,4}$/.test(symbol)) {
+                    symbol += '.TW';
                 }
-                
-                return null; // 真的都抓不到
-            };
             
+                // 定義抓取函式 (內部使用)
+                const fetchFromGas = async (targetSym) => {
+                    try {
+                        // 加上時間戳記 &t= 防止瀏覽器偷懶用舊資料
+                        const url = `${GAS_URL}?symbol=${targetSym}&t=${Date.now()}`;
+                        const res = await fetch(url);
+                        const data = await res.json();
+                        
+                        if (data.chart && data.chart.result) {
+                            const meta = data.chart.result[0].meta;
+                            return {
+                                success: true,
+                                price: meta.regularMarketPrice,
+                                prevClose: meta.chartPreviousClose || meta.previousClose
+                            };
+                        }
+                    } catch (e) {
+                        console.error(`Fetch error for ${targetSym}:`, e);
+                    }
+                    return { success: false };
+                };
+            
+                // 2. 開始抓取
+                // 第一試：直接抓 (例如 2330.TW 或 NVDA)
+                let result = await fetchFromGas(symbol);
+                
+                if (result.success) {
+                    return result;
+                }
+            
+                // 3. 自動救援機制 (針對台股上櫃)
+                // 如果 2330.TW 失敗，且它是 .TW 結尾，那嘗試改成 .TWO (上櫃) 再抓一次
+                if (symbol.endsWith('.TW')) {
+                    const otcSymbol = symbol.replace('.TW', '.TWO');
+                    console.log(`Retrying with OTC: ${otcSymbol}`);
+                    result = await fetchFromGas(otcSymbol);
+                    if (result.success) {
+                        return result;
+                    }
+                }
+            
+                return null; // 真的抓不到
+            };
             const autoFetchName = async () => { const s = form.value.symbol; if (!s) return; if (/^\d/.test(s)) form.value.currency = 'TWD'; else if (/^[A-Za-z]+$/.test(s)) form.value.currency = 'USD'; if (!form.value.name) form.value.name = '查詢中...'; const d = await getYahooData(s); if (d) { if (form.value.name === '查詢中...') form.value.name = d.symbol; form.value.currentPrice = d.regularMarketPrice; form.value.previousClose = d.previousClose; } else { if (form.value.name === '查詢中...') form.value.name = ''; alert('查無代號'); } };
             const autoFetchTransName = async () => { const s = transForm.value.symbol; if (!s) return; const localStock = stocks.value.find(st => st.symbol && st.symbol.toUpperCase() === s.toUpperCase()); if (localStock) { transForm.value.name = localStock.name; form.value.currency = localStock.currency; return; } if (/^\d/.test(s)) form.value.currency = 'TWD'; else if (/^[A-Za-z]+$/.test(s)) form.value.currency = 'USD'; if (!transForm.value.name) transForm.value.name = '查詢中...'; const d = await getYahooData(s); if (d) { if (transForm.value.name === '查詢中...') transForm.value.name = d.symbol; } else { if (transForm.value.name === '查詢中...') transForm.value.name = ''; } };
+            // 全部更新功能
             const fetchPrices = async () => {
                 if (!user.value || stocks.value.length === 0) return;
-    
+                
                 isLoading.value = true;
-                // 將所有狀態設為 loading
+                // 將所有股票狀態設為載入中
                 stocks.value.forEach(s => stockStates.value[s.id] = 'loading');
-    
+                
                 const batch = db.batch();
-                let successCount = 0;
                 const ref = db.collection('users').doc(user.value.uid).collection('stocks');
-
-                // ★★★ 關鍵修改：使用 for...of 迴圈 (一支一支更新) ★★★
-                for (const s of stocks.value) {
-                    try {
-                        // 故意延遲 0.2 秒，避免瞬間流量太大被 Proxy 封鎖
-                        await new Promise(r => setTimeout(r, 200));
-
-                        const data = await getYahooData(s.symbol); // 呼叫上面的新函式
+                let successCount = 0;
             
-                        if (data) {
-                            batch.update(ref.doc(s.id), {
-                                currentPrice: data.regularMarketPrice,
-                                previousClose: data.previousClose
-                            });
-                            stockStates.value[s.id] = 'success'; // 顯示綠勾勾
-                            successCount++;
-                        } else {
-                            stockStates.value[s.id] = 'error'; // 顯示紅驚嘆號
-                        }
-                    } catch (err) {
-                        console.error(err);
-                        stockStates.value[s.id] = 'error';
-                    }
-                }
-
-                // 統一寫入資料庫
-                if (successCount > 0) {
-                    await batch.commit();
+                // 因為 Google 很穩，我們可以同時發送請求 (不用排隊)
+                const updates = stocks.value.map(async (s) => {
+                    const data = await getYahooData(s.symbol);
                     
-                    // 更新 UI 時間
+                    if (data && data.success) {
+                        batch.update(ref.doc(s.id), {
+                            currentPrice: data.price,
+                            previousClose: data.prevClose
+                        });
+                        stockStates.value[s.id] = 'success';
+                        successCount++;
+                        return true;
+                    } else {
+                        stockStates.value[s.id] = 'error';
+                        return false;
+                    }
+                });
+            
+                await Promise.all(updates);
+            
+                if (successCount > 0) {
+                    await batch.commit(); // 寫入資料庫
+                    
+                    // 更新時間
                     const now = new Date();
                     lastUpdated.value = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
-        
-                    // 3秒後自動清除綠勾勾，讓畫面變乾淨
+                    
+                    // 3秒後消除勾勾
                     setTimeout(() => {
                         stocks.value.forEach(s => {
-                            if (stockStates.value[s.id] === 'success') {
-                                delete stockStates.value[s.id];
-                            }
+                            if (stockStates.value[s.id] === 'success') delete stockStates.value[s.id];
                         });
                     }, 3000);
-
-                    if (successCount < stocks.value.length) {
-                        alert(`更新完成，但有 ${stocks.value.length - successCount} 檔失敗，請個別重試。`);
-                    }
                 } else {
-                    alert('更新失敗：無法取得任何股價，請稍後再試。');
+                    alert('更新失敗，請檢查網路或是 GAS 網址是否正確。');
                 }
                 
                 isLoading.value = false;
             };
-            // =========================================================
-            // 修正版函式 C: 單一股票更新 (配合新的 getYahooData)
-            // =========================================================
+            // 單一更新功能
             const updateSingleStock = async (stock) => {
                 if (!user.value) return;
             
-                // 1. 設定狀態為 loading (轉圈圈)
                 stockStates.value[stock.id] = 'loading';
             
-                try {
-                    // 2. 呼叫共用的核心函式 (這裡會自動使用 Proxy 輪替 + 防快取)
-                    const d = await getYahooData(stock.symbol);
+                const data = await getYahooData(stock.symbol);
             
-                    if (d) {
-                        // 3. 抓取成功：寫入資料庫
-                        await db.collection('users').doc(user.value.uid).collection('stocks').doc(stock.id).update({
-                            currentPrice: d.regularMarketPrice,
-                            previousClose: d.previousClose
-                        });
-            
-                        // 顯示成功勾勾
-                        stockStates.value[stock.id] = 'success';
-            
-                        // 更新最後更新時間
-                        const now = new Date();
-                        lastUpdated.value = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
-                        
-                        // 觸發每日快照存檔 (選用)
-                        setTimeout(saveDailySnapshot, 500);
-            
-                        // 3秒後移除勾勾
-                        setTimeout(() => {
-                            if (stockStates.value[stock.id] === 'success') {
-                                delete stockStates.value[stock.id];
-                            }
-                        }, 3000);
-            
-                    } else {
-                        // 抓取失敗 (d 為 null)
-                        console.warn(`Update failed for ${stock.name}`);
-                        stockStates.value[stock.id] = 'error';
-                    }
-                } catch (err) {
-                    console.error(`Update error for ${stock.name}:`, err);
+                if (data && data.success) {
+                    await db.collection('users').doc(user.value.uid).collection('stocks').doc(stock.id).update({
+                        currentPrice: data.price,
+                        previousClose: data.prevClose
+                    });
+                    
+                    stockStates.value[stock.id] = 'success';
+                    
+                    setTimeout(() => {
+                         if (stockStates.value[stock.id] === 'success') delete stockStates.value[stock.id];
+                    }, 3000);
+                } else {
                     stockStates.value[stock.id] = 'error';
                 }
             };
@@ -1906,6 +1873,7 @@
     
 </body>
 </html>
+
 
 
 
