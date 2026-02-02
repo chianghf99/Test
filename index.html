@@ -1757,49 +1757,40 @@
                 // 🛑 共用函式：Yahoo 資料解析
                 // =========================================================
                 const fetchYahoo = async (targetSymbol) => {
-                    // 抓取 1 分鐘線
-                    const targetUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${targetSymbol}?range=5d&interval=1m&events=div,splits&t=${Date.now()}`;
+                    // [重大修正] 改用 v7 Quote API (跟 Yahoo 網頁顯示的一樣)，不再抓 K 線圖 (Chart API)
+                    // 這樣解決了上櫃股票線圖更新太慢的問題
+                    const targetUrl = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${targetSymbol}&t=${Date.now()}`;
                     const url = myGasProxy + encodeURIComponent(targetUrl);
+                    
                     const r = await fetch(url);
                     const j = await r.json();
-
-                    if (j.chart?.result?.length) {
-                        const res = j.chart.result[0];
-                        const meta = res.meta;
+                
+                    // 解析 Quote API 的回傳格式 (跟原本的 Chart API 不一樣)
+                    const result = j.quoteResponse?.result;
+                    
+                    if (result && result.length > 0) {
+                        const data = result[0];
                         
-                        let lastTime = meta.regularMarketTime;
-                        let lastPrice = meta.regularMarketPrice;
-
-                        // K 線雙重確認
-                        const quotes = res.indicators?.quote?.[0];
-                        if (quotes?.close?.length > 0) {
-                            for (let i = quotes.close.length - 1; i >= 0; i--) {
-                                if (quotes.close[i] != null) {
-                                    const candleTime = res.timestamp[i];
-                                    if (candleTime > lastTime) {
-                                        lastTime = candleTime;
-                                        lastPrice = quotes.close[i];
-                                    }
-                                    break;
-                                }
-                            }
-                        }
-
-                        // [關鍵] 這裡會觸發新的 isDataStale 邏輯
+                        // 直接取得網頁上顯示的那個價格與時間
+                        const lastPrice = data.regularMarketPrice;     // 即時價 (388.0)
+                        const lastTime = data.regularMarketTime;       // 資料時間
+                        const prevClose = data.regularMarketPreviousClose; // 昨收 (399.5)
+                
+                        // 依然保留守門員機制 (避免 GAS Proxy 給我快取的舊資料)
                         if (isDataStale(lastTime)) {
-                            // 這裡會把時間轉成人類可讀格式印出來，方便除錯
-                            throw new Error(`Data stale (Time: ${new Date(lastTime*1000).toLocaleString()})`);
+                             // 這裡會把時間轉成人類可讀格式，方便您確認它抓到幾點的資料
+                             throw new Error(`Data stale (Time: ${new Date(lastTime*1000).toLocaleString()})`);
                         }
-
+                
                         return { 
-                            symbol: meta.symbol, 
+                            symbol: data.symbol, 
                             regularMarketPrice: lastPrice, 
-                            previousClose: meta.chartPreviousClose || meta.previousClose 
+                            previousClose: prevClose 
                         };
                     }
-                    throw new Error("No data");
+                    
+                    throw new Error("No data found in Quote API");
                 };
-
                 // =========================================================
                 // 🛑 第二關：Yahoo Finance (上市 .TW)
                 // =========================================================
@@ -1979,6 +1970,7 @@
     
 </body>
 </html>
+
 
 
 
