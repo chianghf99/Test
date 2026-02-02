@@ -1786,34 +1786,50 @@
                 
                 isLoading.value = false;
             };
+            // =========================================================
+            // 修正版函式 C: 單一股票更新 (配合新的 getYahooData)
+            // =========================================================
             const updateSingleStock = async (stock) => {
                 if (!user.value) return;
-                
-                // 設定為讀取中
+            
+                // 1. 設定狀態為 loading (轉圈圈)
                 stockStates.value[stock.id] = 'loading';
-
-                const d = await getYahooData(stock.symbol);
-                
-                if (d) {
-                    await db.collection('users').doc(user.value.uid).collection('stocks').doc(stock.id).update({
-                        currentPrice: d.regularMarketPrice,
-                        previousClose: d.previousClose
-                    });
-                    
-                    // 成功：變綠色，3秒後變回藍色
-                    stockStates.value[stock.id] = 'success';
-                    
-                    lastUpdated.value = `${new Date().getHours()}:${String(new Date().getMinutes()).padStart(2, '0')}`;
-                    setTimeout(saveDailySnapshot, 500);
-                    
-                    // 3秒後移除狀態，變回預設藍色按鈕
-                    setTimeout(() => {
-                        if (stockStates.value[stock.id] === 'success') {
-                            delete stockStates.value[stock.id];
-                        }
-                    }, 3000);
-                } else {
-                    // 失敗：變紅色驚嘆號 (長亮，直到使用者再次點擊重試)
+            
+                try {
+                    // 2. 呼叫共用的核心函式 (這裡會自動使用 Proxy 輪替 + 防快取)
+                    const d = await getYahooData(stock.symbol);
+            
+                    if (d) {
+                        // 3. 抓取成功：寫入資料庫
+                        await db.collection('users').doc(user.value.uid).collection('stocks').doc(stock.id).update({
+                            currentPrice: d.regularMarketPrice,
+                            previousClose: d.previousClose
+                        });
+            
+                        // 顯示成功勾勾
+                        stockStates.value[stock.id] = 'success';
+            
+                        // 更新最後更新時間
+                        const now = new Date();
+                        lastUpdated.value = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
+                        
+                        // 觸發每日快照存檔 (選用)
+                        setTimeout(saveDailySnapshot, 500);
+            
+                        // 3秒後移除勾勾
+                        setTimeout(() => {
+                            if (stockStates.value[stock.id] === 'success') {
+                                delete stockStates.value[stock.id];
+                            }
+                        }, 3000);
+            
+                    } else {
+                        // 抓取失敗 (d 為 null)
+                        console.warn(`Update failed for ${stock.name}`);
+                        stockStates.value[stock.id] = 'error';
+                    }
+                } catch (err) {
+                    console.error(`Update error for ${stock.name}:`, err);
                     stockStates.value[stock.id] = 'error';
                 }
             };
@@ -1877,3 +1893,4 @@
     
 </body>
 </html>
+
