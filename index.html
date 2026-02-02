@@ -1758,7 +1758,7 @@
                 // =========================================================
                 const fetchYahoo = async (targetSymbol) => {
                     // 抓取 1 分鐘線
-                    const targetUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${targetSymbol}?range=1d&interval=1m&events=div,splits&t=${Date.now()}`;
+                    const targetUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${targetSymbol}?range=5d&interval=1m&events=div,splits&t=${Date.now()}`;
                     const url = myGasProxy + encodeURIComponent(targetUrl);
                     const r = await fetch(url);
                     const j = await r.json();
@@ -1979,6 +1979,7 @@
     
 </body>
 </html>
+
 
 
 
