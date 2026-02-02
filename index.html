@@ -1679,129 +1679,112 @@
                 }
             };
 
-            // ★★★ 強韌版 getYahooData (自動切換代理伺服器) ★★★
-            const getYahooData = async (symbol) => { 
-                let s = symbol.toUpperCase(); 
-                if (/^\d{4,6}[A-Z]?$/.test(s)) s += '.TW'; 
-                
-                // 定義代理伺服器清單 (優先順序)
-                // 1. ThingProxy (通常較穩)
-                // 2. CodeTabs (備用)
-                // 3. CorsProxy (原本的，可能被封)
-                // 4. AllOrigins (剛試過，不穩)
+            const getYahooData = async (symbol) => {
+            // 1. 設定 Proxy 池 (建議將 corsproxy.io 放第一位)
                 const proxies = [
-                    'https://thingproxy.freeboard.io/fetch/',
-                    'https://api.codetabs.com/v1/proxy?quest=',
                     'https://corsproxy.io/?',
-                    'https://api.allorigins.win/raw?url='
+                    'https://api.allorigins.win/raw?url=',
+                    'https://thingproxy.freeboard.io/fetch/' 
                 ];
 
-                const targetUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${s}?interval=1d&events=div,splits&t=${Date.now()}`;
-
-                // 迴圈嘗試每一個代理伺服器
+                // 2. 準備網址 (關鍵：加上 &t= 時間戳記，強制抓新資料)
+                // 即使是第一次嘗試，也要加 timestamp，這就是您原本「沒變動」的主因
+                const targetUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&t=${Date.now()}`;
+    
+                // 3. 嘗試所有 Proxy 線路
                 for (const proxy of proxies) {
                     try {
                         const url = proxy + encodeURIComponent(targetUrl);
-                        const r = await fetch(url); 
-                        
-                        // 如果這個代理掛了 (403, 500, 520...)，就拋出錯誤讓迴圈跑下一個
-                        if (!r.ok) throw new Error(`Proxy ${proxy} failed with ${r.status}`);
-                        
-                        const j = await r.json(); 
-                        
-                        // 檢查資料是否為空 (例如上櫃股票用 .TW 查不到)
-                        if (!j.chart?.result?.length) { 
-                            // 如果是 .TW 查不到，嘗試切換成 .TWO (僅針對當前有效的 Proxy 試)
-                            if (s.endsWith('.TW')) { 
-                                const s2 = s.replace('.TW','.TWO');
-                                const targetUrl2 = `https://query1.finance.yahoo.com/v8/finance/chart/${s2}?interval=1d&t=${Date.now()}`;
-                                const r2 = await fetch(proxy + encodeURIComponent(targetUrl2)); // 用同一個 Proxy 試 .TWO
-                                const j2 = await r2.json(); 
-                                if (j2.chart?.result) {
-                                    return { 
-                                        symbol: j2.chart.result[0].meta.symbol, 
-                                        regularMarketPrice: j2.chart.result[0].meta.regularMarketPrice, 
-                                        previousClose: j2.chart.result[0].meta.chartPreviousClose || j2.chart.result[0].meta.previousClose 
-                                    }; 
-                                }
-                            } 
-                            // 真的查不到 (不是 Proxy 問題，是代號錯)
-                            throw new Error('Not Found in Yahoo'); 
-                        } 
-                        
-                        // 成功抓到資料！回傳並結束函數
-                        return { 
-                            symbol: j.chart.result[0].meta.symbol, 
-                            regularMarketPrice: j.chart.result[0].meta.regularMarketPrice, 
-                            previousClose: j.chart.result[0].meta.chartPreviousClose || j.chart.result[0].meta.previousClose 
-                        }; 
-
-                    } catch (e) { 
-                        // 在 Console 印出失敗訊息，並繼續嘗試下一個 Proxy
-                        console.warn(`Retry: ${proxy} failed for ${s}. Error: ${e.message}`);
-                        
-                        // 如果是 "Not Found" 代表 Yahoo 回傳空，不需要換 Proxy，直接回傳 null
-                        if (e.message === 'Not Found in Yahoo') return null;
-                    } 
+                        const res = await fetch(url);
+                        if (!res.ok) continue; // 失敗就換下一條線路
+            
+                        const data = await res.json();
+                        if (data.chart && data.chart.result) {
+                            const meta = data.chart.result[0].meta;
+                            return {
+                                symbol: meta.symbol,
+                                regularMarketPrice: meta.regularMarketPrice,
+                                previousClose: meta.chartPreviousClose || meta.previousClose
+                            };
+                        }
+                    } catch (e) { console.warn(`Proxy ${proxy} failed for ${symbol}`); }
                 }
-                
-                // 如果全部 Proxy 都失敗
-                console.error(`All proxies failed for ${s}`);
-                return null; 
+            
+                // 4. [自動修復] 如果 .TW 失敗，自動嘗試切換成 .TWO (上櫃)
+                if (symbol.endsWith('.TW')) {
+                    const symbolOTC = symbol.replace('.TW', '.TWO');
+                    console.log(`Retry with .TWO for ${symbolOTC}`);
+        
+                    // 遞迴呼叫自己，改查 .TWO
+                    // 注意：這裡直接 return，會重新走上面的 Proxy 流程
+                    return await getYahooData(symbolOTC);
+                }
+            
+                return null; // 真的都抓不到
             };
             
             const autoFetchName = async () => { const s = form.value.symbol; if (!s) return; if (/^\d/.test(s)) form.value.currency = 'TWD'; else if (/^[A-Za-z]+$/.test(s)) form.value.currency = 'USD'; if (!form.value.name) form.value.name = '查詢中...'; const d = await getYahooData(s); if (d) { if (form.value.name === '查詢中...') form.value.name = d.symbol; form.value.currentPrice = d.regularMarketPrice; form.value.previousClose = d.previousClose; } else { if (form.value.name === '查詢中...') form.value.name = ''; alert('查無代號'); } };
             const autoFetchTransName = async () => { const s = transForm.value.symbol; if (!s) return; const localStock = stocks.value.find(st => st.symbol && st.symbol.toUpperCase() === s.toUpperCase()); if (localStock) { transForm.value.name = localStock.name; form.value.currency = localStock.currency; return; } if (/^\d/.test(s)) form.value.currency = 'TWD'; else if (/^[A-Za-z]+$/.test(s)) form.value.currency = 'USD'; if (!transForm.value.name) transForm.value.name = '查詢中...'; const d = await getYahooData(s); if (d) { if (transForm.value.name === '查詢中...') transForm.value.name = d.symbol; } else { if (transForm.value.name === '查詢中...') transForm.value.name = ''; } };
-            const fetchPrices = async () => { 
-                if (!user.value || stocks.value.length === 0) return; 
-                isLoading.value = true; 
-                
-                // 1. 全部設為 Loading
+            const fetchPrices = async () => {
+                if (!user.value || stocks.value.length === 0) return;
+    
+                isLoading.value = true;
+                // 將所有狀態設為 loading
                 stocks.value.forEach(s => stockStates.value[s.id] = 'loading');
-                
-                const batch = db.batch(); 
-                let successCount = 0; 
-                const ref = db.collection('users').doc(user.value.uid).collection('stocks'); 
-                
-                // ★★★ 重點修改：改用 for...of 迴圈一個個抓，不再用 Promise.all ★★★
-                for (const s of stocks.value) {
-                    
-                    // (選用) 每個請求間隔 0.2 秒，對 Proxy 更友善
-                    await new Promise(r => setTimeout(r, 200)); 
+    
+                const batch = db.batch();
+                let successCount = 0;
+                const ref = db.collection('users').doc(user.value.uid).collection('stocks');
 
-                    // 呼叫您的強韌版函式
-                    const d = await getYahooData(s.symbol); 
-                    
-                    if (d) {
-                        // 抓到了
-                        batch.update(ref.doc(s.id), { currentPrice: d.regularMarketPrice, previousClose: d.previousClose });
-                        stockStates.value[s.id] = 'success';
-                        successCount++;
-                        setTimeout(() => {
-                            if (stockStates.value[s.id] === 'success') delete stockStates.value[s.id];
-                        }, 3000);
-                    } else {
-                        // 沒抓到
+                // ★★★ 關鍵修改：使用 for...of 迴圈 (一支一支更新) ★★★
+                for (const s of stocks.value) {
+                    try {
+                        // 故意延遲 0.2 秒，避免瞬間流量太大被 Proxy 封鎖
+                        await new Promise(r => setTimeout(r, 200));
+
+                        const data = await getYahooData(s.symbol); // 呼叫上面的新函式
+            
+                        if (data) {
+                            batch.update(ref.doc(s.id), {
+                                currentPrice: data.regularMarketPrice,
+                                previousClose: data.previousClose
+                            });
+                            stockStates.value[s.id] = 'success'; // 顯示綠勾勾
+                            successCount++;
+                        } else {
+                            stockStates.value[s.id] = 'error'; // 顯示紅驚嘆號
+                        }
+                    } catch (err) {
+                        console.error(err);
                         stockStates.value[s.id] = 'error';
                     }
                 }
-                
-                // 3. 統一寫入資料庫
-                if (successCount > 0) { 
-                    await batch.commit(); 
-                    setTimeout(saveDailySnapshot, 500); 
-                    lastUpdated.value = `${new Date().getHours()}:${String(new Date().getMinutes()).padStart(2, '0')}`;
+
+                // 統一寫入資料庫
+                if (successCount > 0) {
+                    await batch.commit();
                     
+                    // 更新 UI 時間
+                    const now = new Date();
+                    lastUpdated.value = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
+        
+                    // 3秒後自動清除綠勾勾，讓畫面變乾淨
+                    setTimeout(() => {
+                        stocks.value.forEach(s => {
+                            if (stockStates.value[s.id] === 'success') {
+                                delete stockStates.value[s.id];
+                            }
+                        });
+                    }, 3000);
+
                     if (successCount < stocks.value.length) {
-                        alert(`⚠️ 更新完成，但有 ${stocks.value.length - successCount} 檔失敗。\n請檢查列表中顯示「紅色驚嘆號」的項目並點擊重試。`);
-                    } else {
-                        console.log('All updated successfully');
+                        alert(`更新完成，但有 ${stocks.value.length - successCount} 檔失敗，請個別重試。`);
                     }
                 } else {
-                    alert('⚠️ 更新失敗\n無法取得任何股價資料，所有 Proxy 線路皆無回應。\n請稍後再試。');
+                    alert('更新失敗：無法取得任何股價，請稍後再試。');
                 }
                 
-                isLoading.value = false; 
+                isLoading.value = false;
             };
             const updateSingleStock = async (stock) => {
                 if (!user.value) return;
@@ -1894,4 +1877,3 @@
     
 </body>
 </html>
-
