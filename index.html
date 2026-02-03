@@ -1679,24 +1679,29 @@
                 }
             };
 
-            // ★★★ 最終微調版 getYahooData (修正週一收盤後仍顯示舊價問題) ★★★
+            // ★★★ 最終完整版 getYahooData ★★★
+            // 邏輯順序：1. Google Finance -> 2. Yahoo(.TW) -> 3. Yahoo(.TWO)
             const getYahooData = async (symbol) => { 
                 let s = symbol.toUpperCase();
                 
+                // 1. 預設代號處理
                 let yahooSymbol = s;
                 let googleSymbol = s;
-                let expectedCurrency = 'TWD';
+                let expectedCurrency = 'TWD'; // 預設期望抓到台幣
                 
+                // 如果是台股代號 (如 2330, 4768)
                 if (/^\d{4,6}[A-Z]?$/.test(s)) {
-                    yahooSymbol = s + '.TW';
-                    googleSymbol = s + ':TPE';
+                    yahooSymbol = s + '.TW';    // Yahoo 預設先猜上市 (.TW)
+                    googleSymbol = s + ':TPE';  // Google 格式
                 } else {
+                    // 美股或其他
                     expectedCurrency = 'USD';
                 }
 
+                // 您的專屬 GAS 代理
                 const myGasProxy = 'https://script.google.com/macros/s/AKfycbyN4Yib6hdb01-XHP7jlAHFuSkqBd7iqqRd80pDeMia_SpJQ7SM6MPxhaBwF6vJ-kY/exec?url=';
 
-                // [修正] 資料新鮮度檢查 (加入 9 點開盤判斷)
+                // Helper: 資料新鮮度檢查 (防止抓到上週五的舊資料)
                 const isDataStale = (timestamp) => {
                     if (!timestamp) return true;
                     const dataTime = timestamp * 1000;
@@ -1719,7 +1724,7 @@
                 };
 
                 // =========================================================
-                // 🛑 第一關：Google Finance
+                // 🥇 第一優先：Google Finance
                 // =========================================================
                 try {
                     const targetUrl = `https://www.google.com/finance/quote/${googleSymbol}`;
@@ -1727,21 +1732,26 @@
                     const r = await fetch(url);
                     const html = await r.text();
 
-                    // 幣別檢查 (防止 4768 抓到日股)
+                    // [防呆] 幣別檢查 (防止 4768 抓到日股 JPY)
+                    // 如果我們查台股，但頁面沒出現 "TWD" 或 "NT$"，代表 Google 給錯股票了
                     if (expectedCurrency === 'TWD' && !html.includes('TWD') && !html.includes('NT$')) {
-                        throw new Error('Currency mismatch');
+                        // 這裡會拋出錯誤，直接讓程式跳去 catch，進而執行 Yahoo 備案
+                        throw new Error('Currency mismatch (Google returned wrong stock)');
                     }
 
+                    // 抓取價格
                     const priceMatch = html.match(/<div class="YMlKec fxKbKc">([^<]+)<\/div>/);
                     const prevMatch = html.match(/<div class="P6K39c">([^<]+)<\/div>/); 
 
                     if (priceMatch) {
+                        // [修正] 移除所有非數字符號 (解決 NaN 問題)
                         const cleanNumber = (str) => parseFloat(str.replace(/[^0-9.]/g, ''));
                         const currentPrice = cleanNumber(priceMatch[1]);
                         let previousClose = currentPrice;
                         if (prevMatch) previousClose = cleanNumber(prevMatch[1]);
 
                         if (!isNaN(currentPrice)) {
+                            // ★ Google 成功！直接回傳，程式結束，不會去執行 Yahoo
                             return {
                                 symbol: yahooSymbol, 
                                 regularMarketPrice: currentPrice,
@@ -1750,105 +1760,66 @@
                         }
                     }
                 } catch (e) {
-                    // console.warn(`Google failed for ${s}`);
+                    // Google 失敗是預期內的 (例如 4768)，不需驚慌，安靜地跳去下一關
+                    // console.warn(`Google failed for ${s}, switching to Yahoo...`);
                 }
 
                 // =========================================================
-                // 🛑 共用函式：Yahoo 資料解析
+                // 🥈 第二順位：Yahoo Finance (.TW 上市)
                 // =========================================================
+                
+                // 定義 Yahoo 共用抓取函式
                 const fetchYahoo = async (targetSymbol) => {
-                    // =================================================================
-                    // 🟢 策略：直接使用 Yahoo 奇摩股市 (台灣) 的內部 API
-                    // 這跟網頁版 https://tw.stock.yahoo.com 是同一個資料源，絕對準！
-                    // =================================================================
-                    
-                    // 偵測是否為台灣股票 (結尾是 .TW 或 .TWO)
-                    if (targetSymbol.endsWith('.TW') || targetSymbol.endsWith('.TWO')) {
-                        try {
-                            // Yahoo TW 專用 API (注意：這裡 symbols 參數需要放陣列格式)
-                            const twUrl = `https://tw.stock.yahoo.com/_td-stock/api/resource/FinanceService.service.retrieveQuote?symbols=["${targetSymbol}"]`;
-                            // 透過您的 GAS Proxy 發送請求
-                            const url = myGasProxy + encodeURIComponent(twUrl);
-                
-                            const r = await fetch(url);
-                            const j = await r.json();
-                
-                            // 解析台灣 API 回傳格式
-                            if (j.data && j.data.length > 0) {
-                                const stockData = j.data[0];
-                                
-                                // 取得目前股價 (price) 與 昨收 (previousClose)
-                                // 這裡的 stockData.price 就是網頁上顯示的大字 (388.0)
-                                let currentPrice = stockData.price;
-                                let prevClose = stockData.previousClose;
-                
-                                // 容錯處理：有時候 API 會回傳字串，確保轉為數字
-                                if (typeof currentPrice === 'string') currentPrice = parseFloat(currentPrice.replace(/,/g, ''));
-                                if (typeof prevClose === 'string') prevClose = parseFloat(prevClose.replace(/,/g, ''));
-                
-                                // 檢查是否抓到有效價格
-                                if (!isNaN(currentPrice)) {
-                                    // [關於時間] 
-                                    // 台灣 API 通常回傳 "systime" (如 "20260202133000")
-                                    // 為了配合您的 isDataStale 檢查，我們嘗試解析它，如果解析失敗就用當下時間
-                                    // 因為這既然是「即時 API」，只要抓得到通常就是最新的
-                                    let dataTimestamp = Math.floor(Date.now() / 1000); 
-                                    if (stockData.systime && stockData.systime.length === 14) {
-                                        // 簡單解析 YYYYMMDDHHmmss
-                                        const t = stockData.systime;
-                                        const d = new Date(`${t.substring(0,4)}-${t.substring(4,6)}-${t.substring(6,8)}T${t.substring(8,10)}:${t.substring(10,12)}:${t.substring(12,14)}`);
-                                        dataTimestamp = Math.floor(d.getTime() / 1000);
+                    const targetUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${targetSymbol}?range=1d&interval=1m&events=div,splits&t=${Date.now()}`;
+                    const url = myGasProxy + encodeURIComponent(targetUrl);
+                    const r = await fetch(url);
+                    const j = await r.json();
+
+                    if (j.chart?.result?.length) {
+                        const res = j.chart.result[0];
+                        const meta = res.meta;
+                        
+                        let lastTime = meta.regularMarketTime;
+                        let lastPrice = meta.regularMarketPrice;
+
+                        // K 線雙重確認 (防止 meta 資料卡住)
+                        const quotes = res.indicators?.quote?.[0];
+                        if (quotes?.close?.length > 0) {
+                            for (let i = quotes.close.length - 1; i >= 0; i--) {
+                                if (quotes.close[i] != null) {
+                                    const candleTime = res.timestamp[i];
+                                    if (candleTime > lastTime) {
+                                        lastTime = candleTime;
+                                        lastPrice = quotes.close[i];
                                     }
-                
-                                    return { 
-                                        symbol: stockData.symbol, 
-                                        regularMarketPrice: currentPrice, 
-                                        previousClose: prevClose 
-                                    };
+                                    break;
                                 }
                             }
-                        } catch (twErr) {
-                            console.warn(`[TW-API Fail] ${targetSymbol}`, twErr);
-                            // 如果台灣 API 真的掛了，才會往下走去試美國 API (雖然後面通常也抓不到)
                         }
-                    }
-                
-                    // =================================================================
-                    // 🟡 備案：如果不是台股，或是台灣 API 失敗，才使用原本的全球 API
-                    // (美股或其他市場繼續用這個)
-                    // =================================================================
-                    try {
-                        // 改用 v7 或 v10 皆可，這裡保留 v7 給美股用
-                        const targetUrl = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${targetSymbol}`;
-                        const url = myGasProxy + encodeURIComponent(targetUrl);
-                        const r = await fetch(url);
-                        const j = await r.json();
-                        const result = j.quoteResponse?.result;
-                        
-                        if (result && result.length > 0) {
-                            const data = result[0];
-                            return { 
-                                symbol: data.symbol, 
-                                regularMarketPrice: data.regularMarketPrice, 
-                                previousClose: data.regularMarketPreviousClose 
-                            };
+
+                        // 檢查資料是否過期 (如果是舊資料，就報錯，強迫去試 .TWO)
+                        if (isDataStale(lastTime)) {
+                            throw new Error(`Data stale. Time: ${new Date(lastTime*1000).toLocaleString()}`);
                         }
-                        throw new Error("No data in global API");
-                    } catch (e) {
-                        throw e;
+
+                        return { 
+                            symbol: meta.symbol, 
+                            regularMarketPrice: lastPrice, 
+                            previousClose: meta.chartPreviousClose || meta.previousClose 
+                        };
                     }
+                    throw new Error("No data");
                 };
-                // =========================================================
-                // 🛑 第二關：Yahoo Finance (上市 .TW)
-                // =========================================================
+
+                // 嘗試抓 Yahoo 上市 (.TW)
                 try {
                     return await fetchYahoo(yahooSymbol);
                 } catch (e) {
-                    console.warn(`Yahoo .TW failed for ${s} (${e.message}), try .TWO...`);
+                    // console.warn(`Yahoo .TW failed for ${s}, trying .TWO...`);
                 }
 
                 // =========================================================
-                // 🛑 第三關：Yahoo Finance (上櫃 .TWO)
+                // 🥉 第三順位：Yahoo Finance (.TWO 上櫃/興櫃) - 4768 救星
                 // =========================================================
                 if (yahooSymbol.endsWith('.TW')) {
                     try {
@@ -2017,6 +1988,7 @@
     
 </body>
 </html>
+
 
 
 
