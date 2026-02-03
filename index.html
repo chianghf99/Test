@@ -1900,7 +1900,9 @@
                             stockStates.value[stock.id] = null; 
                         }
                         // 注意：這裡移除了 error 的清除邏輯，所以紅色驚嘆號會一直顯示
-                    }, 3000);
+                    }, 300000);
+                    
+                    await new Promise(r => setTimeout(r, 1000));
                 }
 
                 if (hasUpdates) {
@@ -1946,7 +1948,7 @@
                     if (stockStates.value[stock.id] === 'success') {
                         stockStates.value[stock.id] = null;
                     }
-                }, 3000);
+                }, 300000);
             };
             const fetchExchangeRate = async () => { try { const r = await fetch('https://api.exchangerate-api.com/v4/latest/USD'); const d = await r.json(); exchangeRate.value = d.rates.TWD; } catch(e){} };
 
@@ -2008,3 +2010,4 @@
     
 </body>
 </html>
+
