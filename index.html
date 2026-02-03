@@ -1755,14 +1755,13 @@
                 }
 
                 // =========================================================
-                // 🛑 第二關：備用數據源 (台股用 MIS 官方，美股用 Yahoo v7)
+                // 🛑 第二關：備用數據源 (台股用 MIS 官方，美股用 Yahoo v8)
                 // =========================================================
                 const fetchBackup = async (targetSymbol) => {
                     
-                    // A. 台股專用：證交所/櫃買中心 官方 MIS API
+                    // A. 台股專用：證交所/櫃買中心 官方 MIS API (維持不變)
                     if (targetSymbol.endsWith('.TW') || targetSymbol.endsWith('.TWO')) {
                         try {
-                            // 轉換代號格式： 2330.TW -> tse_2330.tw / 4768.TWO -> otc_4768.tw
                             let misSymbol = "";
                             if (targetSymbol.endsWith('.TWO')) {
                                 misSymbol = `otc_${targetSymbol.replace('.TWO', '')}.tw`;
@@ -1778,12 +1777,9 @@
 
                             if (j.msgArray && j.msgArray.length > 0) {
                                 const data = j.msgArray[0];
-                                
-                                // z:成交價, y:昨收, pz:試撮價
                                 let currentPrice = data.z;
                                 let prevClose = data.y;
 
-                                // 如果還沒成交 (z='-')，改用試撮價或昨收
                                 if (currentPrice === '-') {
                                     if (data.pz !== '-') currentPrice = data.pz;
                                     else currentPrice = prevClose;
@@ -1793,7 +1789,6 @@
                                 const finalPrev = parseFloat(prevClose);
 
                                 if (!isNaN(finalPrice)) {
-                                    // 官方資料視為即時有效
                                     return { 
                                         symbol: targetSymbol, 
                                         regularMarketPrice: finalPrice, 
@@ -1806,17 +1801,21 @@
                         }
                     }
 
-                    // B. 非台股 (美股等)：使用 Yahoo Global v7 Quote
+                    // B. 非台股 (美股等)：改回使用 Yahoo Global v8 Chart API
+                    // 原因：v7 Quote API 容易被擋，但 v8 Chart API 對美股支援度很高
                     try {
-                        const targetUrl = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${targetSymbol}`;
+                        const targetUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${targetSymbol}?range=1d&interval=1m&events=div,splits&t=${Date.now()}`;
                         const url = myGasProxy + encodeURIComponent(targetUrl);
                         const r = await fetch(url);
                         const j = await r.json();
-                        const result = j.quoteResponse?.result;
                         
-                        if (result && result.length > 0) {
-                            const data = result[0];
-                            const lastTime = data.regularMarketTime;
+                        if (j.chart?.result?.length) {
+                            const res = j.chart.result[0];
+                            const meta = res.meta;
+                            
+                            // 美股通常 meta 裡的資料就是即時的
+                            let lastPrice = meta.regularMarketPrice;
+                            let lastTime = meta.regularMarketTime;
 
                             // 守門員檢查
                             if (isDataStale(lastTime)) {
@@ -1824,13 +1823,13 @@
                             }
 
                             return { 
-                                symbol: data.symbol, 
-                                regularMarketPrice: data.regularMarketPrice, 
-                                previousClose: data.regularMarketPreviousClose 
+                                symbol: meta.symbol, 
+                                regularMarketPrice: lastPrice, 
+                                previousClose: meta.chartPreviousClose || meta.previousClose 
                             };
                         }
                     } catch (e) {
-                         // 最後也都失敗
+                         // 失敗
                     }
                     throw new Error("All sources failed");
                 };
@@ -2010,4 +2009,5 @@
     
 </body>
 </html>
+
 
