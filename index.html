@@ -1155,6 +1155,7 @@
             const exchangeRate = ref(32.5);
             const lastUpdated = ref('-');
             const loadingTarget = ref(null);
+            const isLoading = computed(() => loadingTarget.value !== null);
             const viewMode = ref('auto');
             const isMobile = ref(window.innerWidth < 768);
             const showPrivacy = ref(false);
@@ -2056,6 +2057,7 @@
     
 </body>
 </html>
+
 
 
 
