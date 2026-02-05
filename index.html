@@ -1699,7 +1699,7 @@
                 }
             };
 
-            // ★★★ 最終版 getYahooData (Google 優先 + 官方 MIS 備援) ★★★
+            // ★★★ 最終修正版 getYahooData (嚴格檢查 MIS 日期) ★★★
             const getYahooData = async (symbol) => { 
                 let s = symbol.toUpperCase();
                 
@@ -1717,61 +1717,61 @@
 
                 const myGasProxy = 'https://script.google.com/macros/s/AKfycbyN4Yib6hdb01-XHP7jlAHFuSkqBd7iqqRd80pDeMia_SpJQ7SM6MPxhaBwF6vJ-kY/exec?url=';
 
-                // [資料新鮮度檢查]
+                // [資料新鮮度檢查 - 用於 Yahoo v8]
                 const isDataStale = (timestamp) => {
                     if (!timestamp) return true;
-                    // 統一轉成毫秒
                     const dataTime = (timestamp < 10000000000) ? timestamp * 1000 : timestamp;
-                    
                     const now = new Date();
                     const hoursDiff = (now.getTime() - dataTime) / (1000 * 60 * 60);
                     const day = now.getDay(); 
                     const hour = now.getHours();
-
-                    // 1. 早上 9 點前 (開盤前)：顯示昨收，不算過期
-                    if (hour < 9) return false;
-
-                    // 2. 早上 9 點後 (開盤後)：嚴格檢查
-                    // 週一：允許 68 小時內的資料 (週五收盤價)
-                    if (day === 1) return hoursDiff > 68;
-
-                    // 平日：超過 18 小時沒更新視為過期
+                    if (hour < 9) return false; // 早上9點前容許舊資料
+                    if (day === 1) return hoursDiff > 68; // 週一容許週五資料
                     const isWeekday = day >= 2 && day <= 5;
                     return isWeekday && hoursDiff > 18;
                 };
 
+                // [輔助] 取得台灣今天的日期字串 (YYYYMMDD)
+                const getTwDateStr = () => {
+                    const now = new Date();
+                    // 強制轉為台灣時間 (UTC+8)
+                    const twNow = new Date(now.getTime() + (now.getTimezoneOffset() * 60000) + (8 * 3600000));
+                    const y = twNow.getFullYear();
+                    const m = String(twNow.getMonth() + 1).padStart(2, '0');
+                    const d = String(twNow.getDate()).padStart(2, '0');
+                    return `${y}${m}${d}`;
+                };
+
                 // =========================================================
-                // 🛑 第一關：Google Finance (優先使用)
+                // 🛑 第一關：Google Finance (僅美股使用，台股直接跳過)
                 // =========================================================
-                try {
-                    const targetUrl = `https://www.google.com/finance/quote/${googleSymbol}`;
-                    const url = myGasProxy + encodeURIComponent(targetUrl);
-                    const r = await fetch(url);
-                    const html = await r.text();
+                if (expectedCurrency === 'USD') {
+                    try {
+                        const targetUrl = `https://www.google.com/finance/quote/${googleSymbol}`;
+                        const url = myGasProxy + encodeURIComponent(targetUrl);
+                        const r = await fetch(url);
+                        const html = await r.text();
 
-                    if (expectedCurrency === 'TWD' && !html.includes('TWD') && !html.includes('NT$')) {
-                        throw new Error('Currency mismatch');
-                    }
+                        const priceMatch = html.match(/<div class="YMlKec fxKbKc">([^<]+)<\/div>/);
+                        const prevMatch = html.match(/<div class="P6K39c">([^<]+)<\/div>/); 
 
-                    const priceMatch = html.match(/<div class="YMlKec fxKbKc">([^<]+)<\/div>/);
-                    const prevMatch = html.match(/<div class="P6K39c">([^<]+)<\/div>/); 
+                        if (priceMatch) {
+                            const cleanNumber = (str) => parseFloat(str.replace(/[^0-9.]/g, ''));
+                            const currentPrice = cleanNumber(priceMatch[1]);
+                            let previousClose = currentPrice;
+                            if (prevMatch) previousClose = cleanNumber(prevMatch[1]);
 
-                    if (priceMatch) {
-                        const cleanNumber = (str) => parseFloat(str.replace(/[^0-9.]/g, ''));
-                        const currentPrice = cleanNumber(priceMatch[1]);
-                        let previousClose = currentPrice;
-                        if (prevMatch) previousClose = cleanNumber(prevMatch[1]);
-
-                        if (!isNaN(currentPrice)) {
-                            return {
-                                symbol: yahooSymbol, 
-                                regularMarketPrice: currentPrice,
-                                previousClose: previousClose
-                            };
+                            if (!isNaN(currentPrice)) {
+                                return {
+                                    symbol: yahooSymbol, 
+                                    regularMarketPrice: currentPrice,
+                                    previousClose: previousClose
+                                };
+                            }
                         }
+                    } catch (e) {
+                        // 美股 Google 失敗，安靜地進入第二關
                     }
-                } catch (e) {
-                    // Google 失敗，安靜地進入第二關
                 }
 
                 // =========================================================
@@ -1779,7 +1779,7 @@
                 // =========================================================
                 const fetchBackup = async (targetSymbol) => {
                     
-                    // A. 台股專用：證交所/櫃買中心 官方 MIS API (維持不變)
+                    // A. 台股專用：證交所/櫃買中心 官方 MIS API (嚴格版)
                     if (targetSymbol.endsWith('.TW') || targetSymbol.endsWith('.TWO')) {
                         try {
                             let misSymbol = "";
@@ -1797,12 +1797,37 @@
 
                             if (j.msgArray && j.msgArray.length > 0) {
                                 const data = j.msgArray[0];
-                                let currentPrice = data.z;
-                                let prevClose = data.y;
+                                
+                                // [關鍵修正 1] 檢查資料日期
+                                // data.d = "20240205" (資料日期)
+                                const dataDate = data.d;
+                                const todayStr = getTwDateStr();
+                                const now = new Date();
+                                const twHour = (now.getTime() + (now.getTimezoneOffset() * 60000) + (8 * 3600000)) / 3600000 % 24;
+                                const isTradingHours = twHour >= 9 && twHour <= 14; 
+                                const isWeekday = now.getDay() >= 1 && now.getDay() <= 5;
 
+                                // 如果是「平日盤中」，但資料日期「不是今天」，視為過期資料 -> 丟出錯誤，不准成功
+                                if (isTradingHours && isWeekday && dataDate && dataDate !== todayStr) {
+                                    throw new Error(`MIS 資料日期過期: ${dataDate} (應為 ${todayStr})`);
+                                }
+
+                                let currentPrice = data.z; // 最近成交價
+                                let prevClose = data.y;    // 昨收
+                                const volume = parseInt(data.v || '0', 10); // 累積成交量
+
+                                // [關鍵修正 2] 只有在「成交量為 0」時，才允許用昨收補現價
+                                // 意思：如果沒量，代表還沒開盤或沒人買賣，這時顯示昨收是合理的。
+                                // 但如果有量 (v > 0)，價格卻是 '-'，那就是資料異常，不要補昨收。
                                 if (currentPrice === '-') {
-                                    if (data.pz !== '-') currentPrice = data.pz;
-                                    else currentPrice = prevClose;
+                                    if (data.pz !== '-' && data.pz !== undefined) {
+                                        currentPrice = data.pz; // 用試撮價
+                                    } else if (volume === 0) {
+                                        currentPrice = prevClose; // 沒量，用昨收
+                                    } else {
+                                        // 有量卻沒價？視為失敗
+                                        throw new Error("MIS 資料異常: 有量無價");
+                                    }
                                 }
                                 
                                 const finalPrice = parseFloat(currentPrice);
@@ -1818,12 +1843,15 @@
                             }
                         } catch (twErr) {
                             console.warn(`[MIS Fail] ${targetSymbol}`, twErr);
+                            // 如果 MIS 失敗 (例如日期不對)，這裡拋出錯誤，讓它去試最後的 Yahoo v8 (雖然台股 Yahoo 也要 Proxy)
+                            throw twErr; 
                         }
                     }
 
-                    // B. 非台股 (美股等)：改回使用 Yahoo Global v8 Chart API
-                    // 原因：v7 Quote API 容易被擋，但 v8 Chart API 對美股支援度很高
+                    // B. 美股或 MIS 失敗後的最後一道防線：Yahoo Global v8 Chart API
                     try {
+                        // 台股代號轉回 Yahoo 格式 (如果 MIS 失敗，試試看 Yahoo 還有沒有救)
+                        // 注意：Yahoo API 對台股上櫃代號支援度也很好
                         const targetUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${targetSymbol}?range=1d&interval=1m&events=div,splits&t=${Date.now()}`;
                         const url = myGasProxy + encodeURIComponent(targetUrl);
                         const r = await fetch(url);
@@ -1833,7 +1861,6 @@
                             const res = j.chart.result[0];
                             const meta = res.meta;
                             
-                            // 美股通常 meta 裡的資料就是即時的
                             let lastPrice = meta.regularMarketPrice;
                             let lastTime = meta.regularMarketTime;
 
@@ -2085,6 +2112,7 @@
     
 </body>
 </html>
+
 
 
 
