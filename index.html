@@ -159,7 +159,7 @@
     <button class="side-btn" onclick="switchPage('settings')"><i class="fas fa-cog"></i> 設定</button>
     <div style="margin-top: auto;">
         <div class="version-link" onclick="showVersionModal()">
-            <i class="fas fa-info-circle me-1"></i> 版本 v3.6
+            <i class="fas fa-info-circle me-1"></i> 版本 v3.7
         </div>
     </div>
 </div>
@@ -293,6 +293,28 @@
                     </div>
                 </div>
             </div>
+
+            <div class="col-12">
+                <div class="card border-0 shadow-sm rounded-4 border-primary" id="cardEditorCard">
+                    <div class="card-body">
+                        <h6 class="fw-bold mb-3" id="editorTitle"><i class="fas fa-calendar-alt text-success me-2"></i>出帳日提醒 & 扣款帳戶</h6>
+                        <div class="row g-2 mb-3">
+                            <div class="col-12 col-md-4"><input type="text" class="form-control" id="newCardName" placeholder="銀行 (如: 玉山)"></div>
+                            <div class="col-4 col-md-2"><input type="number" class="form-control" id="newCardDay" placeholder="日"></div>
+                            <div class="col-8 col-md-4">
+                                <input type="text" class="form-control" id="newCardAutopay" placeholder="扣款帳戶 (選填)" list="bankAccountsList">
+                                <datalist id="bankAccountsList"></datalist>
+                            </div>
+                            <div class="col-12 col-md-2 d-flex gap-2">
+                                <button class="btn btn-primary w-100" id="saveCardBtn" onclick="addCardSetting()">新增</button>
+                                <button class="btn btn-outline-secondary d-none" id="cancelEditBtn" onclick="cancelCardEdit()">取消</button>
+                            </div>
+                        </div>
+                        <div id="cardSettingsList" class="row g-2"></div>
+                    </div>
+                </div>
+            </div>
+
             <div class="col-md-6">
                 <div class="card border-0 shadow-sm rounded-4 h-100">
                     <div class="card-body">
@@ -320,22 +342,10 @@
                     </div>
                 </div>
             </div>
-            <div class="col-12">
-                <div class="card border-0 shadow-sm rounded-4">
-                    <div class="card-body">
-                        <h6 class="fw-bold mb-3"><i class="fas fa-calendar-alt text-success me-2"></i>出帳日提醒 & 扣款帳戶</h6>
-                        <div class="row g-2 mb-3">
-                            <div class="col-12 col-md-4"><input type="text" class="form-control" id="newCardName" placeholder="銀行 (如: 玉山)"></div>
-                            <div class="col-4 col-md-2"><input type="number" class="form-control" id="newCardDay" placeholder="日"></div>
-                            <div class="col-8 col-md-4">
-                                <input type="text" class="form-control" id="newCardAutopay" placeholder="扣款帳戶 (選填)" list="bankAccountsList">
-                                <datalist id="bankAccountsList"></datalist>
-                            </div>
-                            <div class="col-12 col-md-2"><button class="btn btn-outline-primary w-100" onclick="addCardSetting()"><i class="fas fa-plus"></i></button></div>
-                        </div>
-                        <div id="cardSettingsList" class="row g-2"></div>
-                    </div>
-                </div>
+        </div>
+        <div class="text-center mt-4">
+            <div class="version-link text-muted" onclick="showVersionModal()">
+                <i class="fas fa-info-circle me-1"></i> 卡片管家 Pro v3.7
             </div>
         </div>
     </div>
@@ -374,17 +384,17 @@
             <div class="modal-body rounded-bottom-4" style="max-height: 400px; overflow-y: auto;">
                 <div class="changelog-item">
                     <div class="changelog-date">2026/02/25</div>
-                    <div class="changelog-ver">v3.6</div>
+                    <div class="changelog-ver">v3.7</div>
                     <div class="changelog-desc">
-                        • 💎 新增「扣款帳戶」紀錄功能<br>
-                        • 💎 智慧下拉選單 (自動學習扣款銀行)<br>
-                        • 💎 儀表板直接顯示扣款來源
+                        • 💎 **新增「卡片編輯」功能**：直接點擊鉛筆圖示即可修改銀行或日期<br>
+                        • 💎 **修正警報邏輯**：不再因為跨月出帳而誤報「漏上傳帳單」<br>
+                        • 💎 **UI 優化**：更清晰的編輯狀態標示
                     </div>
                 </div>
                 <div class="changelog-item">
-                    <div class="changelog-date">2025/12/17</div>
-                    <div class="changelog-ver">v3.5</div>
-                    <div class="changelog-desc">• 繳費後同步提醒，防止資料遺失</div>
+                    <div class="changelog-date">2026/02/25</div>
+                    <div class="changelog-ver">v3.6</div>
+                    <div class="changelog-desc">• 新增「扣款帳戶」紀錄功能、智慧下拉選單</div>
                 </div>
             </div>
         </div>
@@ -418,6 +428,7 @@
     let apiKey = localStorage.getItem('jsonbin_api_key') || '';
     let isPrivacyOn = false;
     let pinBuffer = "";
+    let editCardIndex = -1; // v3.7 新增：追蹤目前正在編輯哪一張卡
     const HOME_URL = "https://chianghf99.github.io/my-wallet/";
 
     function goToHome() { window.location.href = HOME_URL; }
@@ -485,7 +496,6 @@
             const d = Math.ceil((new Date(b.date) - new Date().setHours(0,0,0,0)) / 86400000);
             let badgeClass = d < 0 ? 'bg-urgent' : d <= 3 ? 'bg-soon' : 'bg-normal';
             
-            // 找出對應的扣款帳戶
             const cardSetting = data.cards.find(c => b.name.includes(c.name));
             const autopayText = cardSetting && cardSetting.autopayFrom ? `<div class="small text-primary mt-1"><i class="fas fa-university me-1"></i>${cardSetting.autopayFrom} 扣款</div>` : '';
 
@@ -516,6 +526,8 @@
         if(name.includes('國泰')) return 'fas fa-leaf';
         if(name.includes('台新')) return 'fas fa-dog';
         if(name.includes('永豐')) return 'fas fa-coins';
+        if(name.includes('中信')) return 'fas fa-shield-alt';
+        if(name.includes('聯邦')) return 'fas fa-landmark';
         return 'fas fa-credit-card';
     }
 
@@ -529,18 +541,57 @@
         }
     }
 
+    // v3.7 新增：卡片編輯與新增邏輯
     function addCardSetting() { 
         const n=document.getElementById('newCardName').value, 
               d=document.getElementById('newCardDay').value,
               a=document.getElementById('newCardAutopay').value; 
         if(n&&d){ 
-            data.cards.push({name:n, day:parseInt(d), autopayFrom: a}); 
+            if(editCardIndex > -1) {
+                // 更新模式
+                data.cards[editCardIndex] = {name:n, day:parseInt(d), autopayFrom: a};
+                editCardIndex = -1;
+            } else {
+                // 新增模式
+                data.cards.push({name:n, day:parseInt(d), autopayFrom: a}); 
+            }
             saveLocal(); render(); 
-            document.getElementById('newCardName').value=''; document.getElementById('newCardDay').value=''; document.getElementById('newCardAutopay').value='';
+            resetCardEditor();
         } 
     }
+
+    function resetCardEditor() {
+        document.getElementById('newCardName').value=''; 
+        document.getElementById('newCardDay').value=''; 
+        document.getElementById('newCardAutopay').value='';
+        document.getElementById('saveCardBtn').textContent = "新增";
+        document.getElementById('saveCardBtn').className = "btn btn-primary w-100";
+        document.getElementById('cancelEditBtn').classList.add('d-none');
+        document.getElementById('editorTitle').innerHTML = '<i class="fas fa-calendar-alt text-success me-2"></i>出帳日提醒 & 扣款帳戶';
+        editCardIndex = -1;
+    }
+
+    function editCardSetting(i) {
+        editCardIndex = i;
+        const c = data.cards[i];
+        document.getElementById('newCardName').value = c.name;
+        document.getElementById('newCardDay').value = c.day;
+        document.getElementById('newCardAutopay').value = c.autopayFrom || '';
+        
+        document.getElementById('saveCardBtn').textContent = "更新資料";
+        document.getElementById('saveCardBtn').className = "btn btn-warning w-100";
+        document.getElementById('cancelEditBtn').classList.remove('d-none');
+        document.getElementById('editorTitle').innerHTML = '<i class="fas fa-edit text-warning me-2"></i>正在編輯：' + c.name;
+        
+        // 自動捲動到編輯區
+        document.getElementById('cardEditorCard').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function cancelCardEdit() {
+        resetCardEditor();
+    }
     
-    function removeCardSetting(i) { data.cards.splice(i,1); saveLocal(); render(); }
+    function removeCardSetting(i) { if(confirm('確定刪除此卡片設定？')) { data.cards.splice(i,1); saveLocal(); render(); } }
 
     function renderSettings() { 
         const l=document.getElementById('cardSettingsList'); l.innerHTML=''; 
@@ -550,7 +601,10 @@
             <div class="col-md-6">
                 <div class="p-3 border rounded-3 d-flex justify-content-between align-items-center bg-white">
                     <span class="text-dark"><i class="fas fa-credit-card text-muted me-2"></i><b>${c.name}</b> (${c.day}號)${autoPayBadge}</span>
-                    <button class="btn btn-sm text-danger" onclick="removeCardSetting(${i})"><i class="fas fa-times"></i></button>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-sm btn-outline-warning" onclick="editCardSetting(${i})"><i class="fas fa-pencil-alt"></i></button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="removeCardSetting(${i})"><i class="fas fa-trash-alt"></i></button>
+                    </div>
                 </div>
             </div>`;
         });
@@ -577,8 +631,6 @@
         } catch(e) { console.error(e); } finally { loadingOverlay.style.display='none'; render(); }
     }
 
-    // --- 圖表邏輯 (保持原樣) ---
-    let cardChart, monthChart;
     function updateCharts() {
         const ctxCard = document.getElementById('cardChart').getContext('2d');
         const ctxMonth = document.getElementById('monthChart').getContext('2d');
@@ -602,12 +654,29 @@
         monthChart = new Chart(ctxMonth, { type: 'bar', data: { labels: sortedKeys, datasets: [{ label: '支出', data: sortedKeys.map(k => timeMap[k]), backgroundColor: '#667eea', borderRadius: 4 }] }, options: { scales: { y: { beginAtZero: true, grid: { color: document.body.hasAttribute('data-theme')?'rgba(255,255,255,0.1)':'rgba(0,0,0,0.05)' } } }, plugins: { legend: { display: false } }, maintainAspectRatio: false } });
     }
 
+    // v3.7 修正：更智慧的警報判斷 (過去20天內有就算有上傳)
     function checkAlerts() {
         const box = document.getElementById('statementAlerts'); box.innerHTML = '';
         const today = new Date().getDate();
+        const now = new Date();
+        const thresholdDate = new Date();
+        thresholdDate.setDate(now.getDate() - 20); // 往回推 20 天
+
         data.cards.forEach(c => {
-            if (today >= c.day && !data.bills.some(b => b.name.includes(c.name) && new Date(b.date).getMonth() === new Date().getMonth())) {
-                box.innerHTML += `<div class="alert alert-warning border-0 shadow-sm rounded-3 mb-3 d-flex align-items-center justify-content-between"><div><strong>${c.name}</strong> 應已出帳 (${c.day}號)</div><button class="btn btn-sm btn-outline-secondary" onclick="markAsSkipped('${c.name}')">🔕 本期無帳單</button></div>`;
+            // 如果今天已經過了出帳日
+            if (today >= c.day) {
+                // 檢查是否有「截止日大於等於 20 天前」的帳單
+                const hasNewBill = data.bills.some(b => 
+                    b.name.includes(c.name) && new Date(b.date) >= thresholdDate
+                );
+                
+                if (!hasNewBill) {
+                    box.innerHTML += `
+                    <div class="alert alert-warning border-0 shadow-sm rounded-3 mb-3 d-flex align-items-center justify-content-between">
+                        <div><strong>${c.name}</strong> 應已出帳 (${c.day}號) <br><small class="opacity-75">未發現近期帳單</small></div>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="markAsSkipped('${c.name}')">🔕 本期無帳單</button>
+                    </div>`;
+                }
             }
         });
     }
