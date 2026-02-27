@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>我的投資組合 | Portfolio v3.7.0</title>
+    <title>我的投資組合 | Portfolio v3.6.0</title>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>tailwind.config = { darkMode: 'class' }</script>
@@ -267,7 +267,7 @@
             border-color: #e5e7eb;
         }
 
-        /* v3.7.0: 手機版 Modal 底部彈出優化 */
+        /* v3.6.0: 手機版 Modal 底部彈出優化 */
         @media (max-width: 640px) {
             .mobile-modal {
                 position: fixed !important;
@@ -295,8 +295,8 @@
                     <i class="fa-solid fa-chart-line"></i>
                 </div>
                 <div>
-                    <h1 class="text-2xl font-bold dark:text-white">資產紀錄帳本 v3.7.0</h1>
-                    <p class="text-gray-500 dark:text-gray-400 text-sm mt-2">v3.7.0 </p>
+                    <h1 class="text-2xl font-bold dark:text-white">資產紀錄帳本 v3.6.0</h1>
+                    <p class="text-gray-500 dark:text-gray-400 text-sm mt-2">v3.6.0 </p>
                 </div>
                 <button @click="login"
                     class="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 font-medium py-2.5 rounded-lg flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-600 transition shadow-sm">
@@ -316,7 +316,7 @@
                         <h1 class="text-lg sm:text-xl font-bold tracking-wide flex items-center gap-2">
                             <span class="hidden sm:inline">我的資產帳本</span>
                             <span @click="showChangelog=true"
-                                class="cursor-pointer bg-gray-100 dark:bg-gray-700 text-xs px-2 py-0.5 rounded text-gray-500 hover:bg-gray-200 transition">v3.7.0</span>
+                                class="cursor-pointer bg-gray-100 dark:bg-gray-700 text-xs px-2 py-0.5 rounded text-gray-500 hover:bg-gray-200 transition">v3.6.0</span>
                         </h1>
                     </div>
                     <div class="flex items-center gap-3">
@@ -492,10 +492,7 @@
                         :class="activeSection==='realized' ? 'btn-active' : 'btn-inactive'"
                         class="border px-4 py-2 rounded-full shadow-sm text-sm transition"><i
                             class="fa-solid fa-file-invoice-dollar mr-2"></i>已實現損益</button>
-                    <button @click="toggleSection('stockAnalysis')"
-                        :class="activeSection==='stockAnalysis' ? 'btn-active' : 'btn-inactive'"
-                        class="border px-4 py-2 rounded-full shadow-sm text-sm transition"><i
-                            class="fa-solid fa-chart-bar mr-2"></i>個股分析</button>
+
                 </div>
 
                 <transition name="collapse">
@@ -986,149 +983,6 @@
                     </div>
                 </transition>
 
-                <!-- ★★★ v3.7.0: 個股貢獻分析 ★★★ -->
-                <transition name="collapse">
-                    <div v-if="activeSection === 'stockAnalysis'" class="zen-card p-4 md:p-6 mb-8">
-                        <h3 class="font-bold mb-4 dark:text-white flex items-center gap-2"><i
-                                class="fa-solid fa-chart-bar text-blue-500"></i>個股貢獻分析</h3>
-
-                        <!-- Query form -->
-                        <div class="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4 mb-6">
-                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
-                                <div>
-                                    <label class="block text-xs font-bold text-gray-500 mb-1">股票代號 / 名稱</label>
-                                    <input type="text" v-model="analysisStock" class="zen-input"
-                                        placeholder="如 2330 或 台積電" @keyup.enter="analyzeStock">
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-bold text-gray-500 mb-1">分析年度</label>
-                                    <select v-model.number="analysisYear" class="zen-input">
-                                        <option v-for="y in analysisYearOptions" :key="y" :value="y">{{ y }} 年</option>
-                                    </select>
-                                </div>
-                                <div class="flex items-end">
-                                    <button @click="analyzeStock" :disabled="isAnalyzing || !analysisStock"
-                                        class="w-full py-2 rounded bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition flex items-center justify-center gap-2">
-                                        <i
-                                            :class="isAnalyzing ? 'fa-solid fa-circle-notch fa-spin' : 'fa-solid fa-magnifying-glass-chart'"></i>
-                                        {{ isAnalyzing ? '分析中...' : '開始分析' }}
-                                    </button>
-                                </div>
-                            </div>
-                            <p class="text-xs text-gray-400">💡 輸入代號或名稱的一部分即可（如「積電」也可搜尋到台積電）</p>
-                        </div>
-
-                        <!-- Results -->
-                        <div v-if="analysisResult" class="space-y-4">
-                            <!-- Header -->
-                            <div class="flex items-center justify-between">
-                                <div>
-                                    <h4 class="font-bold text-lg dark:text-white">{{ analysisResult.stockName }} ({{
-                                        analysisResult.symbol }})</h4>
-                                    <p class="text-xs text-gray-400">{{ analysisResult.year }} 年度貢獻分析</p>
-                                </div>
-                                <div v-if="analysisResult.currentShares > 0" class="text-right text-xs text-gray-500">
-                                    <div>持有 {{ analysisResult.currentShares }} 股</div>
-                                    <div>現價 {{ formatCurrency(analysisResult.currentPrice, analysisResult.currency) }}
-                                    </div>
-                                </div>
-                                <div v-else class="text-xs text-orange-500 font-medium">📦 已出清</div>
-                            </div>
-
-                            <!-- Stats cards -->
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                <!-- Year unrealized (calculated) -->
-                                <div
-                                    class="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
-                                    <div class="text-xs text-gray-400 mb-1 flex items-center gap-1">
-                                        <i class="fa-solid fa-arrow-trend-up"></i>
-                                        {{ analysisResult.year }} 年未實現損益
-                                        <span v-if="analysisResult.yearStartPrice" class="text-green-500 font-medium">✓
-                                            精確</span>
-                                        <span v-else class="text-yellow-500">⚠ 估算</span>
-                                    </div>
-                                    <div class="text-xl font-bold"
-                                        :class="(analysisResult.yearUnrealized || analysisResult.currentUnrealized) >= 0 ? 'text-up' : 'text-down'">
-                                        {{ formatCurrency(analysisResult.yearUnrealized !== null ?
-                                        analysisResult.yearUnrealized : analysisResult.currentUnrealized, 'TWD') }}
-                                    </div>
-                                    <div v-if="analysisResult.yearStartPrice" class="text-xs text-gray-400 mt-1">
-                                        年初股價: {{ formatCurrency(analysisResult.yearStartPrice, analysisResult.currency)
-                                        }} × {{ analysisResult.sharesAtYearStart }} 股
-                                    </div>
-                                    <div v-if="analysisResult.yearUnrealized === null && analysisResult.currentShares > 0"
-                                        class="text-xs text-yellow-500 mt-1">
-                                        ⚠ 無法取得年初股價，顯示累計帳面損益
-                                    </div>
-                                    <div v-if="analysisResult.currentShares === 0" class="text-xs text-gray-400 mt-1">
-                                        持倉已清空</div>
-                                </div>
-
-                                <!-- Realized -->
-                                <div
-                                    class="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
-                                    <div class="text-xs text-gray-400 mb-1"><i
-                                            class="fa-solid fa-hand-holding-dollar mr-1"></i>{{ analysisResult.year }}
-                                        年已實現損益</div>
-                                    <div class="text-xl font-bold"
-                                        :class="analysisResult.realizedTotal >= 0 ? 'text-up' : 'text-down'">
-                                        {{ formatCurrency(analysisResult.realizedTotal, 'TWD') }}
-                                    </div>
-                                    <div class="text-xs text-gray-400 mt-1">共 {{ analysisResult.realizedCount }} 筆賣出紀錄
-                                    </div>
-                                </div>
-
-                                <!-- Dividends -->
-                                <div
-                                    class="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
-                                    <div class="text-xs text-gray-400 mb-1"><i class="fa-solid fa-coins mr-1"></i>{{
-                                        analysisResult.year }} 年股息收入</div>
-                                    <div class="text-xl font-bold text-yellow-600 dark:text-yellow-400">
-                                        {{ formatCurrency(analysisResult.divTotal, 'TWD') }}
-                                    </div>
-                                    <div class="text-xs text-gray-400 mt-1">共 {{ analysisResult.divCount }} 筆股息紀錄</div>
-                                </div>
-
-                                <!-- Total -->
-                                <div
-                                    class="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl p-4 shadow-sm border border-blue-100 dark:border-blue-900/40">
-                                    <div class="text-xs text-blue-500 font-bold mb-1"><i
-                                            class="fa-solid fa-trophy mr-1"></i>合計貢獻（{{ analysisResult.year }} 年）</div>
-                                    <div class="text-2xl font-bold"
-                                        :class="analysisResult.totalContribution >= 0 ? 'text-up' : 'text-down'">
-                                        {{ formatCurrency(analysisResult.totalContribution, 'TWD') }}
-                                    </div>
-                                    <div class="text-xs text-gray-500 mt-2 space-y-0.5">
-                                        <div>未實現: {{ formatCurrency(analysisResult.yearUnrealized !== null ?
-                                            analysisResult.yearUnrealized : analysisResult.currentUnrealized, 'TWD') }}
-                                        </div>
-                                        <div>已實現: {{ formatCurrency(analysisResult.realizedTotal, 'TWD') }}</div>
-                                        <div>股息: {{ formatCurrency(analysisResult.divTotal, 'TWD') }}</div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Note -->
-                            <div
-                                class="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg px-4 py-3 flex items-start gap-3 text-xs text-yellow-700 dark:text-yellow-300">
-                                <i class="fa-solid fa-circle-info mt-0.5 flex-shrink-0"></i>
-                                <div>
-                                    <span
-                                        v-if="analysisResult.yearUnrealized !== null">未實現損益基於年初第一個交易日收盤價計算，為精確數字。</span>
-                                    <span v-else>未實現損益為從最初持有成本至今的累積帳面損益。如要取得年度精確未實現，請確認 Yahoo Finance 有此股票的歷史資料。</span>
-                                    已實現及股息資料皆為 {{ analysisResult.year }} 年內的確切紀錄。
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Empty state -->
-                        <div v-else-if="!isAnalyzing" class="text-center py-12 text-gray-400">
-                            <i class="fa-solid fa-chart-pie text-4xl mb-3 opacity-30"></i>
-                            <p class="text-sm">輸入股票代號或名稱，查看該股票的年度貢獻分析</p>
-                        </div>
-                    </div>
-                </transition>
-
 
                 <div class="flex justify-end mb-4">
                     <div class="flex bg-gray-200 dark:bg-gray-700 rounded p-0.5">
@@ -1520,182 +1374,6 @@
 
                     <div class="p-6 overflow-y-auto custom-scrollbar">
                         <div class="relative border-l-2 border-gray-200 dark:border-gray-700 ml-3 space-y-8">
-
-                            <div class="relative pl-6">
-                                <span
-                                    class="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-emerald-500 border-4 border-white dark:border-gray-800"></span>
-                                <div class="flex justify-between items-baseline mb-2">
-                                    <span class="font-bold text-emerald-600 dark:text-emerald-400 text-lg">v3.7.0</span>
-                                    <span class="text-xs text-gray-400">2026/02/27</span>
-                                </div>
-                                <ul class="space-y-2 text-sm text-gray-600 dark:text-gray-300">
-                                    <li class="flex items-start gap-2"><span
-                                            class="mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">新增</span><span>個股貢獻分析：全新「📊
-                                            個股分析」分頁，輸入股票代號即可查看年度未實現、已實現損益與股息收入的完整貢獻彙總。</span></li>
-                                    <li class="flex items-start gap-2"><span
-                                            class="mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">新增</span><span>精確年度未實現：透過
-                                            Yahoo Finance 查詢年初股價，計算純粹當年度的帳面漲幅，而非從持有成本累計。</span></li>
-                                    <li class="flex items-start gap-2"><span
-                                            class="mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">優化</span><span>支援已出清股票查詢：即使持股為
-                                            0，仍可查詢該股票過去的已實現損益與股息收入。</span></li>
-                                </ul>
-                            </div>
-
-                            <div class="relative pl-6">
-                                <span
-                                    class="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-green-600 border-4 border-white dark:border-gray-800"></span>
-                                <div class="flex justify-between items-baseline mb-2">
-                                    <span class="font-bold text-green-600 dark:text-green-400 text-lg">v3.7.0</span>
-                                    <span class="text-xs text-gray-400">2026/02/27</span>
-                                </div>
-                                <ul class="space-y-2 text-sm text-gray-600 dark:text-gray-300">
-                                    <li class="flex items-start gap-2"><span
-                                            class="mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300">修正</span><span>頁籤按鈕：修復點選「資產走勢/配置/交易紀錄」等分頁時，按鈕
-                                            active 樣式不顯示的問題。</span></li>
-                                    <li class="flex items-start gap-2"><span
-                                            class="mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300">修正</span><span>美股刪除：修復刪除美股庫存時確認視窗顯示
-                                            undefined 的問題。</span></li>
-                                    <li class="flex items-start gap-2"><span
-                                            class="mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300">修正</span><span>股息統計：修復股息加總未套用日期篩選，導致顯示全部而非篩選範圍內的金額。</span>
-                                    </li>
-                                    <li class="flex items-start gap-2"><span
-                                            class="mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300">修正</span><span>JSON
-                                            還原：修復還原失敗時 Loading 狀態卡住不重置的問題。</span></li>
-                                    <li class="flex items-start gap-2"><span
-                                            class="mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">優化</span><span>歷史快照：改良晚間鎖定邏輯，加入
-                                            savedHour 欄位，僅鎖定白天建立的有效快照，避免資料載入 race condition 導致快照被錯誤凍結。</span></li>
-                                    <li class="flex items-start gap-2"><span
-                                            class="mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">新增</span><span>市場類型欄位：庫存新增上市(TSE)/上櫃(OTC)屬性，新增股票時可手動選擇，或讓系統自動偵測後儲存。</span>
-                                    </li>
-                                    <li class="flex items-start gap-2"><span
-                                            class="mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">新增</span><span>一次性自動偵測：啟動時自動為現有庫存識別上市/上櫃屬性，無需重新輸入資料。</span>
-                                    </li>
-                                    <li class="flex items-start gap-2"><span
-                                            class="mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">優化</span><span>台股更新速度：不再等待
-                                            Google Finance HTML 解析，直接呼叫台灣 MIS 官方
-                                            API，大幅提升更新速度與穩定性，並解決上櫃股票偶發查詢失敗問題。</span></li>
-                                </ul>
-                            </div>
-
-                            <div class="relative pl-6">
-                                <span
-                                    class="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-blue-600 border-4 border-white dark:border-gray-800"></span>
-                                <div class="flex justify-between items-baseline mb-2">
-                                    <span class="font-bold text-blue-600 dark:text-blue-400 text-lg">v3.5.0</span>
-                                    <span class="text-xs text-gray-400">2026/01/31</span>
-                                </div>
-                                <ul class="space-y-2 text-sm text-gray-600 dark:text-gray-300">
-                                    <li class="flex items-start gap-2"><span
-                                            class="mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">新增</span><span>單一更新：庫存列表新增「單一股票更新」按鈕
-                                            (旋轉圖示)，可單獨刷新特定個股報價。</span></li>
-                                    <li class="flex items-start gap-2"><span
-                                            class="mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">優化</span><span>更新回饋：優化股價更新的成功/失敗提示視窗，並解決報價卡住問題。</span>
-                                    </li>
-                                </ul>
-                            </div>
-
-                            <div class="relative pl-6">
-                                <span
-                                    class="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-blue-400 border-4 border-white dark:border-gray-800"></span>
-                                <div class="flex justify-between items-baseline mb-2">
-                                    <span class="font-bold text-blue-500 dark:text-blue-300 text-lg">v3.4.0</span>
-                                    <span class="text-xs text-gray-400">2026/01/26</span>
-                                </div>
-                                <ul class="space-y-2 text-sm text-gray-600 dark:text-gray-300">
-                                    <li class="flex items-start gap-2"><span
-                                            class="mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">新增</span><span>超級還款模式：還款時可選「外部資金
-                                            (薪水)」，系統將自動補登入金，確保 ROE 計算準確。</span></li>
-                                    <li class="flex items-start gap-2"><span
-                                            class="mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">優化</span><span>記帳防呆提示：在資金管理與交易視窗新增操作提示，幫助區分自有資金與借貸資金。</span>
-                                    </li>
-                                </ul>
-                            </div>
-
-                            <div class="relative pl-6">
-                                <span
-                                    class="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-purple-600 border-4 border-white dark:border-gray-800"></span>
-                                <div class="flex justify-between items-baseline mb-2">
-                                    <span class="font-bold text-purple-700 dark:text-purple-400 text-lg">v3.3.4</span>
-                                    <span class="text-xs text-gray-400">2026/01/25</span>
-                                </div>
-                                <ul class="space-y-2 text-sm text-gray-600 dark:text-gray-300">
-                                    <li class="flex items-start gap-2"><span
-                                            class="mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">修正</span><span>高報酬
-                                            XIRR：修復短期獲利過高 (如 >100%) 導致演算法發散而顯示 0% 的問題。</span></li>
-                                    <li class="flex items-start gap-2"><span
-                                            class="mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">相容</span><span>iOS
-                                            日期：解決 Safari 瀏覽器無法正確解析 "YYYY-MM-DD" 日期格式的問題。</span></li>
-                                </ul>
-                            </div>
-
-                            <div class="relative pl-6">
-                                <span
-                                    class="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-purple-500 border-4 border-white dark:border-gray-800"></span>
-                                <div class="flex justify-between items-baseline mb-2">
-                                    <span class="font-bold text-purple-600 dark:text-purple-400 text-lg">v3.3.2</span>
-                                    <span class="text-xs text-gray-400">2026/01/25</span>
-                                </div>
-                                <ul class="space-y-2 text-sm text-gray-600 dark:text-gray-300">
-                                    <li class="flex items-start gap-2"><span
-                                            class="mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">除錯</span><span>XIRR
-                                            診斷模式：滑鼠移至「年化報酬率」問號處，可查看詳細計算參數。</span></li>
-                                    <li class="flex items-start gap-2"><span
-                                            class="mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">修正</span><span>數值格式：修復歷史紀錄中的數值若含逗號會導致計算錯誤的問題。</span>
-                                    </li>
-                                </ul>
-                            </div>
-
-                            <div class="relative pl-6">
-                                <span
-                                    class="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-green-500 border-4 border-white dark:border-gray-800"></span>
-                                <div class="flex justify-between items-baseline mb-2">
-                                    <span class="font-bold text-green-600 dark:text-green-400 text-lg">v3.3.0</span>
-                                    <span class="text-xs text-gray-400">2026/01/25</span>
-                                </div>
-                                <ul class="space-y-2 text-sm text-gray-600 dark:text-gray-300">
-                                    <li class="flex items-start gap-2"><span
-                                            class="mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">新增</span><span>年化報酬率
-                                            (XIRR)：自動計算資金運用的真實效率。</span></li>
-                                </ul>
-                            </div>
-
-                            <div class="relative pl-6">
-                                <span
-                                    class="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-red-500 border-4 border-white dark:border-gray-800"></span>
-                                <div class="flex justify-between items-baseline mb-2">
-                                    <span class="font-bold text-red-600 dark:text-red-400 text-lg">v3.2.1</span>
-                                    <span class="text-xs text-gray-400">2026/01/25</span>
-                                </div>
-                                <ul class="space-y-2 text-sm text-gray-600 dark:text-gray-300">
-                                    <li class="flex items-start gap-2"><span
-                                            class="mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300">新增</span><span>資料清除：新增「清除所有資料」功能，可一鍵重置帳號。</span>
-                                    </li>
-                                </ul>
-                            </div>
-
-                            <div class="relative pl-6">
-                                <span
-                                    class="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-gray-300 dark:bg-gray-600 border-4 border-white dark:border-gray-800"></span>
-                                <div class="flex justify-between items-baseline mb-2">
-                                    <span class="font-bold text-gray-500 dark:text-gray-400 text-lg">v2.9.x</span>
-                                    <span class="text-xs text-gray-400">歷史紀錄</span>
-                                </div>
-                                <div
-                                    class="bg-gray-50 dark:bg-gray-700/50 rounded p-3 text-xs text-gray-500 dark:text-gray-400 space-y-1.5">
-                                    <div class="flex gap-2"><span
-                                            class="font-bold">v2.9.20</span><span>新增「個股筆記」功能</span></div>
-                                    <div class="flex gap-2"><span
-                                            class="font-bold">v2.9.18</span><span>新增「圖表區間」與「歷史年份」篩選</span></div>
-                                    <div class="flex gap-2"><span class="font-bold">v2.9.17</span><span>新增「JSON
-                                            資料還原」備份功能</span></div>
-                                    <div class="flex gap-2"><span
-                                            class="font-bold">v2.9.15</span><span>新增「偏好設定」(如預設隱藏金額)</span></div>
-                                    <div class="flex gap-2"><span class="font-bold">v2.9.12</span><span>新增「匯出
-                                            Excel」報表</span></div>
-                                    <div class="flex gap-2"><span
-                                            class="font-bold">v2.9.05</span><span>新增「借款帳戶管理」系統</span></div>
-                                </div>
-                            </div>
 
                         </div>
                     </div>
@@ -2317,7 +1995,7 @@
                 const activeSection = ref('');
                 const showChangelog = ref(false);
                 const stockStates = ref({});
-                const sectionLoading = ref(false); // v3.7.0: per-section loading state
+                const sectionLoading = ref(false); // v3.6.0: per-section loading state
 
                 // XIRR 變數
                 const xirrValue = ref(0.0);
@@ -2338,15 +2016,9 @@
 
                 const showDeleteModal = ref(false);
                 const pendingDeleteTx = ref(null);
-                // v3.7.0: Transaction edit
+                // v3.6.0: Transaction edit
                 const showEditTxModal = ref(false);
                 const editTxForm = ref({ id: null, date: '', name: '', memo: '' });
-                // v3.7.0: Individual stock analysis
-                const analysisStock = ref('');
-                const analysisYear = ref(new Date().getFullYear());
-                const analysisResult = ref(null);
-                const isAnalyzing = ref(false);
-                const analysisYearOptions = Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i);
                 const showHistoryEditModalVisible = ref(false);
                 const historyEditForm = ref({ date: '', twVal: 0, usVal: 0, twCash: 0, usCash: 0, loan: 0 });
                 const notes = ref([]);
@@ -2495,7 +2167,7 @@
 
                 const sortedDividends = computed(() => { return dividendRecords.value.slice().sort((a, b) => { let modifier = sortOrderDiv.value === 'desc' ? -1 : 1; if (sortKeyDiv.value === 'date') return (new Date(a.date) - new Date(b.date)) * modifier; if (sortKeyDiv.value === 'symbol') return (a.name || a.symbol).localeCompare(b.name || b.symbol) * modifier; if (sortKeyDiv.value === 'amount') return (a.amount - b.amount) * modifier; return 0; }); });
 
-                // v3.7.0: XIRR debounce
+                // v3.6.0: XIRR debounce
                 let xirrDebounceTimer = null;
                 const debouncedXirr = () => { clearTimeout(xirrDebounceTimer); xirrDebounceTimer = setTimeout(computeSystemXirr, 3000); };
                 // 觸發計算
@@ -2554,7 +2226,7 @@
                     if (unsubscribe) unsubscribe(); unsubscribe = db.collection('users').doc(uid).collection('stocks').onSnapshot(snap => {
                         stocks.value = snap.docs.map(d => ({ id: d.id, ...d.data() }));
                         if (stocks.value.length > 0) saveDailySnapshot();
-                        // v3.7.0: 自動偵測未分類股票的市場類型（背景執行，不阻塞 UI）
+                        // v3.6.0: 自動偵測未分類股票的市場類型（背景執行，不阻塞 UI）
                         const unclassified = stocks.value.filter(s => !s.marketType && s.currency !== 'USD');
                         if (unclassified.length > 0) setTimeout(() => autoDetectMarketTypes(unclassified), 5000);
                     });
@@ -2567,116 +2239,7 @@
                 const logout = () => auth.signOut();
 
                 // --- 5. 匯出/匯入/清除 ---
-                // ★★★ v3.7.0: 個股貢獻分析 ★★★
-                const getHistoricalPrice = async (symbol, dateStr) => {
-                    try {
-                        const d = new Date(dateStr);
-                        const period1 = Math.floor(d.getTime() / 1000);
-                        const period2 = period1 + 86400 * 7;
-                        const cleanSym = symbol.replace(/\.(TW|TWO)$/i, '');
-                        const isTw = /^\d{4,6}[A-Z]?$/.test(cleanSym.toUpperCase());
-                        const yahooSym = isTw ? cleanSym + '.TW' : symbol;
-                        const url = `https://query1.finance.yahoo.com/v8/finance/chart/${yahooSym}?period1=${period1}&period2=${period2}&interval=1d`;
-                        const r = await fetch(GAS_PROXY + encodeURIComponent(url));
-                        const j = await r.json();
-                        const closes = j.chart?.result?.[0]?.indicators?.quote?.[0]?.close;
-                        if (closes && closes.length > 0) {
-                            return closes.find(c => c !== null && !isNaN(c)) || null;
-                        }
-                    } catch (e) { console.warn('getHistoricalPrice error:', e); }
-                    return null;
-                };
-
-                const analyzeStock = async () => {
-                    if (!user.value || !analysisStock.value.trim()) return;
-                    isAnalyzing.value = true;
-                    analysisResult.value = null;
-                    const uid = user.value.uid;
-                    const searchTerm = analysisStock.value.trim();
-                    const searchUpper = searchTerm.toUpperCase();
-                    const year = analysisYear.value;
-                    const yearStart = `${year}-01-01`;
-                    const yearEnd = `${year}-12-31`;
-                    const matchFn = (s) =>
-                        (s.symbol && s.symbol.toUpperCase().includes(searchUpper)) ||
-                        (s.name && s.name.includes(searchTerm));
-                    try {
-                        // 1. Current holding (could be 0 if sold)
-                        const currentStock = stocks.value.find(matchFn);
-
-                        // 2. All transactions for this stock → reconstruct year-start shares
-                        const allTxSnap = await db.collection('users').doc(uid).collection('transactions').orderBy('date', 'asc').get();
-                        const stockTx = allTxSnap.docs.map(d => ({ id: d.id, ...d.data() })).filter(matchFn);
-                        let sharesAtYearStart = 0;
-                        for (const tx of stockTx.filter(t => t.date < yearStart)) {
-                            if (tx.type === 'buy') sharesAtYearStart += Number(tx.shares) || 0;
-                            else if (tx.type === 'sell') sharesAtYearStart -= Number(tx.shares) || 0;
-                        }
-                        sharesAtYearStart = Math.max(0, sharesAtYearStart);
-
-                        // Net buy/sell cost within the year
-                        let netInvestYear = 0;
-                        for (const tx of stockTx.filter(t => t.date >= yearStart && t.date <= yearEnd)) {
-                            const rate = tx.currency === 'USD' ? exchangeRate.value : 1;
-                            const amt = (Number(tx.totalAmount) || 0) * rate;
-                            if (tx.type === 'buy') netInvestYear += amt;
-                            else if (tx.type === 'sell') netInvestYear -= amt;
-                        }
-
-                        // 3. Current unrealized (all-time basis from avgCost)
-                        const rate = (currentStock?.currency === 'USD') ? exchangeRate.value : 1;
-                        const currentUnrealized = currentStock
-                            ? (currentStock.currentPrice - currentStock.avgCost) * currentStock.shares * rate : 0;
-
-                        // 4. Year-specific unrealized via historical price query
-                        let yearStartPrice = null, yearStartValue = 0, yearUnrealized = null;
-                        if (sharesAtYearStart > 0) {
-                            const sym = currentStock?.symbol || searchUpper;
-                            yearStartPrice = await getHistoricalPrice(sym, yearStart);
-                            if (yearStartPrice !== null) {
-                                yearStartValue = sharesAtYearStart * yearStartPrice * rate;
-                                const currentValue = currentStock ? currentStock.currentPrice * currentStock.shares * rate : 0;
-                                yearUnrealized = currentValue - yearStartValue - netInvestYear;
-                            }
-                        }
-
-                        // 5. Realized gains in year
-                        const realizedSnap = await db.collection('users').doc(uid).collection('realized_gains')
-                            .where('date', '>=', yearStart).where('date', '<=', yearEnd).get();
-                        const stockRealized = realizedSnap.docs.map(d => ({ id: d.id, ...d.data() })).filter(matchFn);
-                        const realizedTotal = stockRealized.reduce((acc, r) =>
-                            acc + (r.currency === 'USD' ? (r.pnl || 0) * exchangeRate.value : (r.pnl || 0)), 0);
-
-                        // 6. Dividends in year
-                        const divSnap = await db.collection('users').doc(uid).collection('dividends')
-                            .where('date', '>=', yearStart).where('date', '<=', yearEnd).get();
-                        const stockDiv = divSnap.docs.map(d => ({ id: d.id, ...d.data() })).filter(matchFn);
-                        const divTotal = stockDiv.reduce((acc, d) =>
-                            acc + (d.currency === 'USD' ? (d.amount || 0) * exchangeRate.value : (d.amount || 0)), 0);
-
-                        const effectiveUnrealized = yearUnrealized !== null ? yearUnrealized : currentUnrealized;
-                        analysisResult.value = {
-                            stockName: currentStock?.name || searchTerm,
-                            symbol: currentStock?.symbol || searchUpper,
-                            year, currency: currentStock?.currency || 'TWD',
-                            currentShares: currentStock?.shares || 0,
-                            currentPrice: currentStock?.currentPrice || 0,
-                            avgCost: currentStock?.avgCost || 0,
-                            currentUnrealized, yearUnrealized,
-                            yearStartPrice, sharesAtYearStart, yearStartValue,
-                            realizedTotal, realizedCount: stockRealized.length,
-                            divTotal, divCount: stockDiv.length,
-                            totalContribution: effectiveUnrealized + realizedTotal + divTotal
-                        };
-                    } catch (e) {
-                        console.error('analyzeStock error:', e);
-                        alert('查詢失敗：' + e.message);
-                    } finally {
-                        isAnalyzing.value = false;
-                    }
-                };
-
-                const exportData = async () => { if (!user.value) return; const uid = user.value.uid; const allStocks = await db.collection('users').doc(uid).collection('stocks').get(); const allTrans = await db.collection('users').doc(uid).collection('transactions').get(); const allRealized = await db.collection('users').doc(uid).collection('realized_gains').get(); const allDividends = await db.collection('users').doc(uid).collection('dividends').get(); const allHistory = await db.collection('users').doc(uid).collection('history').orderBy('date').get(); const allNotes = await db.collection('users').doc(uid).collection('notes').get(); const allLoans = await db.collection('users').doc(uid).collection('loans').get(); const cashDoc = await db.collection('users').doc(uid).collection('portfolio').doc('cash').get(); const obj = { stocks: allStocks.docs.map(d => ({ id: d.id, ...d.data() })), transactions: allTrans.docs.map(d => ({ id: d.id, ...d.data() })), realized: allRealized.docs.map(d => ({ id: d.id, ...d.data() })), dividends: allDividends.docs.map(d => ({ id: d.id, ...d.data() })), history: allHistory.docs.map(d => d.data()), cash: cashDoc.exists ? cashDoc.data() : { twd: 0, usd: 0, loan: 0 }, notes: allNotes.docs.map(d => ({ id: d.id, ...d.data() })), loans: allLoans.docs.map(d => ({ id: d.id, ...d.data() })) }; const a = document.createElement('a'); a.href = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(obj, null, 2)); a.download = `portfolio_FULL_BACKUP_${getLocalDate()}.json`; document.body.appendChild(a); a.click(); a.remove(); };
+                const exportDataconst exportData = async () => { if (!user.value) return; const uid = user.value.uid; const allStocks = await db.collection('users').doc(uid).collection('stocks').get(); const allTrans = await db.collection('users').doc(uid).collection('transactions').get(); const allRealized = await db.collection('users').doc(uid).collection('realized_gains').get(); const allDividends = await db.collection('users').doc(uid).collection('dividends').get(); const allHistory = await db.collection('users').doc(uid).collection('history').orderBy('date').get(); const allNotes = await db.collection('users').doc(uid).collection('notes').get(); const allLoans = await db.collection('users').doc(uid).collection('loans').get(); const cashDoc = await db.collection('users').doc(uid).collection('portfolio').doc('cash').get(); const obj = { stocks: allStocks.docs.map(d => ({ id: d.id, ...d.data() })), transactions: allTrans.docs.map(d => ({ id: d.id, ...d.data() })), realized: allRealized.docs.map(d => ({ id: d.id, ...d.data() })), dividends: allDividends.docs.map(d => ({ id: d.id, ...d.data() })), history: allHistory.docs.map(d => d.data()), cash: cashDoc.exists ? cashDoc.data() : { twd: 0, usd: 0, loan: 0 }, notes: allNotes.docs.map(d => ({ id: d.id, ...d.data() })), loans: allLoans.docs.map(d => ({ id: d.id, ...d.data() })) }; const a = document.createElement('a'); a.href = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(obj, null, 2)); a.download = `portfolio_FULL_BACKUP_${getLocalDate()}.json`; document.body.appendChild(a); a.click(); a.remove(); };
 
                 const exportToExcel = async () => { if (!user.value) return; if (typeof XLSX === 'undefined') { alert('Excel 元件載入失敗，請檢查網路連線。'); return; } const uid = user.value.uid; const wb = XLSX.utils.book_new(); const summaryData = [['項目', '金額 (TWD)', '金額 (USD)'], ['總淨資產 (Net Worth)', grandTotalValue.value, grandTotalValue.value / exchangeRate.value], ['台股部位', twStats.value.value, twStats.value.value / exchangeRate.value], ['美股部位', usStats.value.value * exchangeRate.value, usStats.value.value], ['台幣現金', cashData.value.twd, cashData.value.twd / exchangeRate.value], ['美金現金', cashData.value.usd * exchangeRate.value, cashData.value.usd], ['總負債 (Loans)', totalLoanBalance.value, totalLoanBalance.value / exchangeRate.value], ['未實現損益', grandTotalPnL.value, grandTotalPnL.value / exchangeRate.value], ['匯率 (USD/TWD)', exchangeRate.value, '']]; XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summaryData), "總覽 Summary"); const sSnap = await db.collection('users').doc(uid).collection('stocks').get(); const stockData = sSnap.docs.map(d => d.data()).map(s => ({ 代號: s.symbol, 名稱: s.name, 幣別: s.currency, 股數: s.shares, 平均成本: s.avgCost, 現價: s.currentPrice, 市值: s.shares * s.currentPrice, 損益: (s.currentPrice - s.avgCost) * s.shares })); XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(stockData), "庫存 Stocks"); const tSnap = await db.collection('users').doc(uid).collection('transactions').orderBy('date', 'desc').get(); const txData = tSnap.docs.map(d => d.data()); const wsTrans = XLSX.utils.json_to_sheet(txData.map(t => ({ 日期: t.date, 類別: getTypeName(t.type), 代號: t.symbol, 名稱: t.name, 股數: t.shares, 總金額: t.totalAmount, 幣別: t.currency, 備註: t.memo || '' }))); XLSX.utils.book_append_sheet(wb, wsTrans, "交易紀錄 Transactions"); const hSnap = await db.collection('users').doc(uid).collection('history').orderBy('date', 'desc').get(); const histData = hSnap.docs.map(d => d.data()); const wsHist = XLSX.utils.json_to_sheet(histData.map(h => ({ 日期: h.date, 淨資產: h.totalVal, 總資產: (h.totalVal || 0) + (h.loan || 0), 負債: h.loan, 台股: h.twVal, 美股USD: h.usVal, 台幣現金: h.twCash || 0, 美金現金: h.usCash || 0 }))); XLSX.utils.book_append_sheet(wb, wsHist, "歷史淨值 History"); const rSnap = await db.collection('users').doc(uid).collection('realized_gains').orderBy('date', 'desc').get(); const realData = rSnap.docs.map(d => d.data()); XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(realData), "已實現損益 Realized"); const dSnap = await db.collection('users').doc(uid).collection('dividends').orderBy('date', 'desc').get(); const divData = dSnap.docs.map(d => d.data()); XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(divData), "股息 Dividends"); const lSnap = await db.collection('users').doc(uid).collection('loans').get(); const loanData = lSnap.docs.map(d => d.data()); XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(loanData), "借款 Loans"); const nSnap = await db.collection('users').doc(uid).collection('notes').get(); const noteData = nSnap.docs.map(d => d.data()); XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(noteData), "筆記 Notes"); XLSX.writeFile(wb, `Portfolio_FULL_Export_${getLocalDate()}.xlsx`); };
 
@@ -2735,7 +2298,7 @@
                 const closeNoteModal = () => showNoteModalVisible.value = false;
                 const saveNote = async () => { if (!user.value || !noteForm.value.title) return alert('請輸入標題'); const data = { title: noteForm.value.title, date: noteForm.value.date || getLocalDate(), content: noteForm.value.content || '', timestamp: firebase.firestore.FieldValue.serverTimestamp() }; if (noteForm.value.id) { await db.collection('users').doc(user.value.uid).collection('notes').doc(noteForm.value.id).update(data); } else { await db.collection('users').doc(user.value.uid).collection('notes').add(data); } closeNoteModal(); };
                 const deleteNote = async (id) => { if (!confirm('確定刪除此筆記？')) return; await db.collection('users').doc(user.value.uid).collection('notes').doc(id).delete(); };
-                // v3.7.0: 交易編輯（僅允許修改日期、備註等非金融欄位）
+                // v3.6.0: 交易編輯（僅允許修改日期、備註等非金融欄位）
                 const openEditTxModal = (tx) => {
                     editTxForm.value = { id: tx.id, date: tx.date, name: tx.name || '', memo: tx.memo || '' };
                     showEditTxModal.value = true;
@@ -3010,7 +2573,7 @@
                 };
 
 
-                // ★★★ v3.7.0: 直接 MIS API 抓台股 (上市/上櫃)，不再等 Google Finance ★★★
+                // ★★★ v3.6.0: 直接 MIS API 抓台股 (上市/上櫃)，不再等 Google Finance ★★★
                 const GAS_PROXY = 'https://script.google.com/macros/s/AKfycbyN4Yib6hdb01-XHP7jlAHFuSkqBd7iqqRd80pDeMia_SpJQ7SM6MPxhaBwF6vJ-kY/exec?url=';
 
                 const fetchTwStockPrice = async (symbol, marketType) => {
@@ -3072,7 +2635,7 @@
                 // 啟動時為未分類股票批次自動偵測（背景執行，不阻塞 UI）
                 const autoDetectMarketTypes = async (unclassified) => {
                     if (!user.value || unclassified.length === 0) return;
-                    console.log(`[v3.7.0] 自動偵測 ${unclassified.length} 支股票的上市/上櫃屬性...`);
+                    console.log(`[v3.6.0] 自動偵測 ${unclassified.length} 支股票的上市/上櫃屬性...`);
                     for (const stock of unclassified) {
                         try {
                             const marketType = await detectMarketType(stock);
@@ -3081,10 +2644,10 @@
                         } catch (e) { console.warn(`[偵測失敗] ${stock.symbol}`, e); }
                         await new Promise(r => setTimeout(r, 600));
                     }
-                    console.log('[v3.7.0] 偵測完成！');
+                    console.log('[v3.6.0] 偵測完成！');
                 };
 
-                // v3.7.0: 統一的股價抓取入口（自動走對的 API 路徑）
+                // v3.6.0: 統一的股價抓取入口（自動走對的 API 路徑）
                 const fetchStockData = async (stock) => {
                     let mt = stock.marketType;
                     // 若未設定 marketType，先偵測並儲存
@@ -3347,7 +2910,7 @@
                     let successCount = 0;
                     let failCount = 0;
 
-                    // ★ [v3.7.0] 並行更新，每批最多 3 支同時抓取，批次間休息 800ms
+                    // ★ [v3.6.0] 並行更新，每批最多 3 支同時抓取，批次間休息 800ms
                     const CONCURRENT_LIMIT = 3;
                     for (let i = 0; i < targetStocks.length; i += CONCURRENT_LIMIT) {
                         const batchStocks = targetStocks.slice(i, i + CONCURRENT_LIMIT);
@@ -3486,12 +3049,11 @@
                     xirrValue, xirrStartDate, computeSystemXirr, xirrStartVal, xirrEndVal, xirrFlowCount, repaySource,
                     // v3.5.0
                     updateSingleStock, stockStates, loadingTarget,
-                    // v3.7.0
+                    // v3.6.0
                     isPriceStale, lastUpdatedTs,
-                    // v3.7.0
+                    // v3.6.0
                     fetchStockData, detectMarketType, autoDetectMarketTypes,
-                    // v3.7.0
-                    analysisStock, analysisYear, analysisResult, isAnalyzing, analysisYearOptions, analyzeStock,
+
                     sectionLoading,
                     showEditTxModal, editTxForm, openEditTxModal, saveEditTx,
                     dividendLastYearTw, dividendLastYearUs, currentYear, dividendYearlyTw, dividendYearlyUs
