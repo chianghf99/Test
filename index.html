@@ -986,6 +986,150 @@
                     </div>
                 </transition>
 
+                <!-- ★★★ v3.7.0: 個股貢獻分析 ★★★ -->
+                <transition name="collapse">
+                    <div v-if="activeSection === 'stockAnalysis'" class="zen-card p-4 md:p-6 mb-8">
+                        <h3 class="font-bold mb-4 dark:text-white flex items-center gap-2"><i
+                                class="fa-solid fa-chart-bar text-blue-500"></i>個股貢獻分析</h3>
+
+                        <!-- Query form -->
+                        <div class="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4 mb-6">
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-500 mb-1">股票代號 / 名稱</label>
+                                    <input type="text" v-model="analysisStock" class="zen-input"
+                                        placeholder="如 2330 或 台積電" @keyup.enter="analyzeStock">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-500 mb-1">分析年度</label>
+                                    <select v-model.number="analysisYear" class="zen-input">
+                                        <option v-for="y in analysisYearOptions" :key="y" :value="y">{{ y }} 年</option>
+                                    </select>
+                                </div>
+                                <div class="flex items-end">
+                                    <button @click="analyzeStock" :disabled="isAnalyzing || !analysisStock"
+                                        class="w-full py-2 rounded bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition flex items-center justify-center gap-2">
+                                        <i
+                                            :class="isAnalyzing ? 'fa-solid fa-circle-notch fa-spin' : 'fa-solid fa-magnifying-glass-chart'"></i>
+                                        {{ isAnalyzing ? '分析中...' : '開始分析' }}
+                                    </button>
+                                </div>
+                            </div>
+                            <p class="text-xs text-gray-400">💡 輸入代號或名稱的一部分即可（如「積電」也可搜尋到台積電）</p>
+                        </div>
+
+                        <!-- Results -->
+                        <div v-if="analysisResult" class="space-y-4">
+                            <!-- Header -->
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <h4 class="font-bold text-lg dark:text-white">{{ analysisResult.stockName }} ({{
+                                        analysisResult.symbol }})</h4>
+                                    <p class="text-xs text-gray-400">{{ analysisResult.year }} 年度貢獻分析</p>
+                                </div>
+                                <div v-if="analysisResult.currentShares > 0" class="text-right text-xs text-gray-500">
+                                    <div>持有 {{ analysisResult.currentShares }} 股</div>
+                                    <div>現價 {{ formatCurrency(analysisResult.currentPrice, analysisResult.currency) }}
+                                    </div>
+                                </div>
+                                <div v-else class="text-xs text-orange-500 font-medium">📦 已出清</div>
+                            </div>
+
+                            <!-- Stats cards -->
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <!-- Year unrealized (calculated) -->
+                                <div
+                                    class="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
+                                    <div class="text-xs text-gray-400 mb-1 flex items-center gap-1">
+                                        <i class="fa-solid fa-arrow-trend-up"></i>
+                                        {{ analysisResult.year }} 年未實現損益
+                                        <span v-if="analysisResult.yearStartPrice" class="text-green-500 font-medium">✓
+                                            精確</span>
+                                        <span v-else class="text-yellow-500">⚠ 估算</span>
+                                    </div>
+                                    <div class="text-xl font-bold"
+                                        :class="(analysisResult.yearUnrealized || analysisResult.currentUnrealized) >= 0 ? 'text-up' : 'text-down'">
+                                        {{ formatCurrency(analysisResult.yearUnrealized !== null ?
+                                        analysisResult.yearUnrealized : analysisResult.currentUnrealized, 'TWD') }}
+                                    </div>
+                                    <div v-if="analysisResult.yearStartPrice" class="text-xs text-gray-400 mt-1">
+                                        年初股價: {{ formatCurrency(analysisResult.yearStartPrice, analysisResult.currency)
+                                        }} × {{ analysisResult.sharesAtYearStart }} 股
+                                    </div>
+                                    <div v-if="analysisResult.yearUnrealized === null && analysisResult.currentShares > 0"
+                                        class="text-xs text-yellow-500 mt-1">
+                                        ⚠ 無法取得年初股價，顯示累計帳面損益
+                                    </div>
+                                    <div v-if="analysisResult.currentShares === 0" class="text-xs text-gray-400 mt-1">
+                                        持倉已清空</div>
+                                </div>
+
+                                <!-- Realized -->
+                                <div
+                                    class="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
+                                    <div class="text-xs text-gray-400 mb-1"><i
+                                            class="fa-solid fa-hand-holding-dollar mr-1"></i>{{ analysisResult.year }}
+                                        年已實現損益</div>
+                                    <div class="text-xl font-bold"
+                                        :class="analysisResult.realizedTotal >= 0 ? 'text-up' : 'text-down'">
+                                        {{ formatCurrency(analysisResult.realizedTotal, 'TWD') }}
+                                    </div>
+                                    <div class="text-xs text-gray-400 mt-1">共 {{ analysisResult.realizedCount }} 筆賣出紀錄
+                                    </div>
+                                </div>
+
+                                <!-- Dividends -->
+                                <div
+                                    class="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
+                                    <div class="text-xs text-gray-400 mb-1"><i class="fa-solid fa-coins mr-1"></i>{{
+                                        analysisResult.year }} 年股息收入</div>
+                                    <div class="text-xl font-bold text-yellow-600 dark:text-yellow-400">
+                                        {{ formatCurrency(analysisResult.divTotal, 'TWD') }}
+                                    </div>
+                                    <div class="text-xs text-gray-400 mt-1">共 {{ analysisResult.divCount }} 筆股息紀錄</div>
+                                </div>
+
+                                <!-- Total -->
+                                <div
+                                    class="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl p-4 shadow-sm border border-blue-100 dark:border-blue-900/40">
+                                    <div class="text-xs text-blue-500 font-bold mb-1"><i
+                                            class="fa-solid fa-trophy mr-1"></i>合計貢獻（{{ analysisResult.year }} 年）</div>
+                                    <div class="text-2xl font-bold"
+                                        :class="analysisResult.totalContribution >= 0 ? 'text-up' : 'text-down'">
+                                        {{ formatCurrency(analysisResult.totalContribution, 'TWD') }}
+                                    </div>
+                                    <div class="text-xs text-gray-500 mt-2 space-y-0.5">
+                                        <div>未實現: {{ formatCurrency(analysisResult.yearUnrealized !== null ?
+                                            analysisResult.yearUnrealized : analysisResult.currentUnrealized, 'TWD') }}
+                                        </div>
+                                        <div>已實現: {{ formatCurrency(analysisResult.realizedTotal, 'TWD') }}</div>
+                                        <div>股息: {{ formatCurrency(analysisResult.divTotal, 'TWD') }}</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Note -->
+                            <div
+                                class="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg px-4 py-3 flex items-start gap-3 text-xs text-yellow-700 dark:text-yellow-300">
+                                <i class="fa-solid fa-circle-info mt-0.5 flex-shrink-0"></i>
+                                <div>
+                                    <span
+                                        v-if="analysisResult.yearUnrealized !== null">未實現損益基於年初第一個交易日收盤價計算，為精確數字。</span>
+                                    <span v-else>未實現損益為從最初持有成本至今的累積帳面損益。如要取得年度精確未實現，請確認 Yahoo Finance 有此股票的歷史資料。</span>
+                                    已實現及股息資料皆為 {{ analysisResult.year }} 年內的確切紀錄。
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Empty state -->
+                        <div v-else-if="!isAnalyzing" class="text-center py-12 text-gray-400">
+                            <i class="fa-solid fa-chart-pie text-4xl mb-3 opacity-30"></i>
+                            <p class="text-sm">輸入股票代號或名稱，查看該股票的年度貢獻分析</p>
+                        </div>
+                    </div>
+                </transition>
+
+
                 <div class="flex justify-end mb-4">
                     <div class="flex bg-gray-200 dark:bg-gray-700 rounded p-0.5">
                         <button @click="viewMode = 'card'"
@@ -2122,148 +2266,6 @@
                     </div>
                 </div>
 
-                <!-- ★★★ v3.7.0: 個股貢獻分析 ★★★ -->
-                <transition name="collapse">
-                    <div v-if="activeSection === 'stockAnalysis'" class="zen-card p-4 md:p-6 mb-8">
-                        <h3 class="font-bold mb-4 dark:text-white flex items-center gap-2"><i
-                                class="fa-solid fa-chart-bar text-blue-500"></i>個股貢獻分析</h3>
-
-                        <!-- Query form -->
-                        <div class="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4 mb-6">
-                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
-                                <div>
-                                    <label class="block text-xs font-bold text-gray-500 mb-1">股票代號 / 名稱</label>
-                                    <input type="text" v-model="analysisStock" class="zen-input"
-                                        placeholder="如 2330 或 台積電" @keyup.enter="analyzeStock">
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-bold text-gray-500 mb-1">分析年度</label>
-                                    <select v-model.number="analysisYear" class="zen-input">
-                                        <option v-for="y in analysisYearOptions" :key="y" :value="y">{{ y }} 年</option>
-                                    </select>
-                                </div>
-                                <div class="flex items-end">
-                                    <button @click="analyzeStock" :disabled="isAnalyzing || !analysisStock"
-                                        class="w-full py-2 rounded bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition flex items-center justify-center gap-2">
-                                        <i
-                                            :class="isAnalyzing ? 'fa-solid fa-circle-notch fa-spin' : 'fa-solid fa-magnifying-glass-chart'"></i>
-                                        {{ isAnalyzing ? '分析中...' : '開始分析' }}
-                                    </button>
-                                </div>
-                            </div>
-                            <p class="text-xs text-gray-400">💡 輸入代號或名稱的一部分即可（如「積電」也可搜尋到台積電）</p>
-                        </div>
-
-                        <!-- Results -->
-                        <div v-if="analysisResult" class="space-y-4">
-                            <!-- Header -->
-                            <div class="flex items-center justify-between">
-                                <div>
-                                    <h4 class="font-bold text-lg dark:text-white">{{ analysisResult.stockName }} ({{
-                                        analysisResult.symbol }})</h4>
-                                    <p class="text-xs text-gray-400">{{ analysisResult.year }} 年度貢獻分析</p>
-                                </div>
-                                <div v-if="analysisResult.currentShares > 0" class="text-right text-xs text-gray-500">
-                                    <div>持有 {{ analysisResult.currentShares }} 股</div>
-                                    <div>現價 {{ formatCurrency(analysisResult.currentPrice, analysisResult.currency) }}
-                                    </div>
-                                </div>
-                                <div v-else class="text-xs text-orange-500 font-medium">📦 已出清</div>
-                            </div>
-
-                            <!-- Stats cards -->
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                <!-- Year unrealized (calculated) -->
-                                <div
-                                    class="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
-                                    <div class="text-xs text-gray-400 mb-1 flex items-center gap-1">
-                                        <i class="fa-solid fa-arrow-trend-up"></i>
-                                        {{ analysisResult.year }} 年未實現損益
-                                        <span v-if="analysisResult.yearStartPrice" class="text-green-500 font-medium">✓
-                                            精確</span>
-                                        <span v-else class="text-yellow-500">⚠ 估算</span>
-                                    </div>
-                                    <div class="text-xl font-bold"
-                                        :class="(analysisResult.yearUnrealized || analysisResult.currentUnrealized) >= 0 ? 'text-up' : 'text-down'">
-                                        {{ formatCurrency(analysisResult.yearUnrealized !== null ?
-                                        analysisResult.yearUnrealized : analysisResult.currentUnrealized, 'TWD') }}
-                                    </div>
-                                    <div v-if="analysisResult.yearStartPrice" class="text-xs text-gray-400 mt-1">
-                                        年初股價: {{ formatCurrency(analysisResult.yearStartPrice, analysisResult.currency)
-                                        }} × {{ analysisResult.sharesAtYearStart }} 股
-                                    </div>
-                                    <div v-if="analysisResult.yearUnrealized === null && analysisResult.currentShares > 0"
-                                        class="text-xs text-yellow-500 mt-1">
-                                        ⚠ 無法取得年初股價，顯示累計帳面損益
-                                    </div>
-                                    <div v-if="analysisResult.currentShares === 0" class="text-xs text-gray-400 mt-1">
-                                        持倉已清空</div>
-                                </div>
-
-                                <!-- Realized -->
-                                <div
-                                    class="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
-                                    <div class="text-xs text-gray-400 mb-1"><i
-                                            class="fa-solid fa-hand-holding-dollar mr-1"></i>{{ analysisResult.year }}
-                                        年已實現損益</div>
-                                    <div class="text-xl font-bold"
-                                        :class="analysisResult.realizedTotal >= 0 ? 'text-up' : 'text-down'">
-                                        {{ formatCurrency(analysisResult.realizedTotal, 'TWD') }}
-                                    </div>
-                                    <div class="text-xs text-gray-400 mt-1">共 {{ analysisResult.realizedCount }} 筆賣出紀錄
-                                    </div>
-                                </div>
-
-                                <!-- Dividends -->
-                                <div
-                                    class="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
-                                    <div class="text-xs text-gray-400 mb-1"><i class="fa-solid fa-coins mr-1"></i>{{
-                                        analysisResult.year }} 年股息收入</div>
-                                    <div class="text-xl font-bold text-yellow-600 dark:text-yellow-400">
-                                        {{ formatCurrency(analysisResult.divTotal, 'TWD') }}
-                                    </div>
-                                    <div class="text-xs text-gray-400 mt-1">共 {{ analysisResult.divCount }} 筆股息紀錄</div>
-                                </div>
-
-                                <!-- Total -->
-                                <div
-                                    class="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl p-4 shadow-sm border border-blue-100 dark:border-blue-900/40">
-                                    <div class="text-xs text-blue-500 font-bold mb-1"><i
-                                            class="fa-solid fa-trophy mr-1"></i>合計貢獻（{{ analysisResult.year }} 年）</div>
-                                    <div class="text-2xl font-bold"
-                                        :class="analysisResult.totalContribution >= 0 ? 'text-up' : 'text-down'">
-                                        {{ formatCurrency(analysisResult.totalContribution, 'TWD') }}
-                                    </div>
-                                    <div class="text-xs text-gray-500 mt-2 space-y-0.5">
-                                        <div>未實現: {{ formatCurrency(analysisResult.yearUnrealized !== null ?
-                                            analysisResult.yearUnrealized : analysisResult.currentUnrealized, 'TWD') }}
-                                        </div>
-                                        <div>已實現: {{ formatCurrency(analysisResult.realizedTotal, 'TWD') }}</div>
-                                        <div>股息: {{ formatCurrency(analysisResult.divTotal, 'TWD') }}</div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Note -->
-                            <div
-                                class="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg px-4 py-3 flex items-start gap-3 text-xs text-yellow-700 dark:text-yellow-300">
-                                <i class="fa-solid fa-circle-info mt-0.5 flex-shrink-0"></i>
-                                <div>
-                                    <span
-                                        v-if="analysisResult.yearUnrealized !== null">未實現損益基於年初第一個交易日收盤價計算，為精確數字。</span>
-                                    <span v-else>未實現損益為從最初持有成本至今的累積帳面損益。如要取得年度精確未實現，請確認 Yahoo Finance 有此股票的歷史資料。</span>
-                                    已實現及股息資料皆為 {{ analysisResult.year }} 年內的確切紀錄。
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Empty state -->
-                        <div v-else-if="!isAnalyzing" class="text-center py-12 text-gray-400">
-                            <i class="fa-solid fa-chart-pie text-4xl mb-3 opacity-30"></i>
-                            <p class="text-sm">輸入股票代號或名稱，查看該股票的年度貢獻分析</p>
-                        </div>
-                    </div>
-                </transition>
 
             </div>
         </div>
