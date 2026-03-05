@@ -2755,17 +2755,17 @@
                 };
 
 
-                // 主快照函式：盤中 → CF+MIS 即時，盤後 → Open API
-                // exChList: ['tse_2330.tw', 'otc_6415.tw', ...] 僅盤中需要
+                // 主快照函式
+                // 有 exChList → 一律走 CF+MIS（盤中即時, 盤後也有今日收盤）
+                // 無 exChList → TWSE Open API（用於 detectMarketType 等）
                 const fetchTwMarketSnapshot = async (exChList) => {
-                    const marketOpen = isTwMarketOpen();
-                    const cacheTtl = marketOpen ? 30 * 1000 : 5 * 60 * 1000; // 盤中 30 秒, 盤後 5 分鐘
+                    const cacheTtl = (exChList?.length > 0) ? 30 * 1000 : 5 * 60 * 1000;
                     if (_twMarketCache && Date.now() - _twMarketCacheTs < cacheTtl) return _twMarketCache;
 
                     let map = new Map();
 
-                    if (marketOpen && exChList && exChList.length > 0) {
-                        // ★ 盤中：CF Worker → MIS 批次即時報價（一次 request 搞定全部）
+                    if (exChList && exChList.length > 0) {
+                        // ★ 永遠走 CF Worker → MIS（盤中=即時, 盤後 z='-' 自動 fallback 到 pz=今日收盤）
                         try {
                             const exCh = exChList.join('|');
                             const misUrl = `https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=${exCh}&json=1&delay=0&t=${Date.now()}`;
@@ -2780,22 +2780,23 @@
                                     if (!isNaN(finalPrice) && finalPrice > 0)
                                         map.set(s.c, { price: finalPrice, prevClose: isNaN(prevClose) ? finalPrice : prevClose, market });
                                 });
-                                console.log(`[v3.8.0] 即時台股快照 (MIS)，共 ${map.size} 支`);
+                                console.log(`[v3.8.0] 台股快照 (MIS)，共 ${map.size} 支`);
                             }
                         } catch (e) {
-                            console.warn('[MIS 即時] 失敗，fallback 至 Open API', e);
+                            console.warn('[MIS] 失敗，fallback 至 Open API', e);
                             map = await fetchTwSnapshotFromOpenApi();
                         }
                     } else {
-                        // ★ 盤後：TWSE/TPEx Open API
+                        // 無 exChList：用 Open API（偵測上市/上櫃用）
                         map = await fetchTwSnapshotFromOpenApi();
-                        console.log(`[v3.8.0] 台股快照 (Open API)，共 ${map.size} 支`);
                     }
 
                     _twMarketCache = map;
                     _twMarketCacheTs = Date.now();
                     return map;
                 };
+
+
 
 
                 const fetchTwStockPrice = async (symbol) => {
