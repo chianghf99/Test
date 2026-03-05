@@ -2711,27 +2711,97 @@
                 };
 
 
-                // ★★★ v3.8.0: 直連 API，移除 GAS Proxy ★★★
-                // 台股：直接打 MIS TWSE (CORS 允許)
-                // 美股：Finnhub REST API (60 req/min 免費)
+                // ★★★ v3.8.0: 直連 API ★★★
+                // 台股（盤中）：Cloudflare Worker → MIS TWSE 批次即時報價
+                // 台股（盤後）：TWSE Open API + TPEx Open API
+                // 美股：Finnhub REST API
                 const FINNHUB_API_KEY = 'd6klt59r01qg51f4ff00d6klt59r01qg51f4ff0g';
+                const CF_PROXY = 'https://stock-proxy.chicken7999.workers.dev/?url=';
 
-                const fetchTwStockPrice = async (symbol, marketType) => {
-                    const cleanSym = symbol.replace(/\.(TW|TWO)$/i, '');
-                    const prefix = (marketType === 'otc') ? 'otc' : 'tse';
-                    const misUrl = `https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=${prefix}_${cleanSym}.tw&json=1&delay=0&t=${Date.now()}`;
-                    const r = await fetch(misUrl);
-                    const j = await r.json();
-                    if (j.msgArray && j.msgArray.length > 0) {
-                        const data = j.msgArray[0];
-                        let price = data.z;
-                        if (price === '-' || price === '') price = (data.pz !== '-' && data.pz !== '') ? data.pz : data.y;
-                        const finalPrice = parseFloat(price);
-                        const prevClose = parseFloat(data.y);
-                        if (!isNaN(finalPrice) && finalPrice > 0) {
-                            return { regularMarketPrice: finalPrice, previousClose: isNaN(prevClose) ? finalPrice : prevClose };
+                // 台股快照 cache
+                let _twMarketCache = null;
+                let _twMarketCacheTs = 0;
+
+                // 判斷台灣股市是否盤中（台灣時間週一~五 9:00-13:35）
+                const isTwMarketOpen = () => {
+                    const twNow = new Date(Date.now() + 8 * 60 * 60 * 1000); // UTC+8
+                    const day = twNow.getUTCDay(); // 0=日, 6=六
+                    const totalMin = twNow.getUTCHours() * 60 + twNow.getUTCMinutes();
+                    return day >= 1 && day <= 5 && totalMin >= 540 && totalMin <= 815; // 9:00~13:35
+                };
+
+                // 從 TWSE/TPEx Open API 抓當日收盤（盤後用）
+                const fetchTwSnapshotFromOpenApi = async () => {
+                    const map = new Map();
+                    try {
+                        const j = await (await fetch('https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL')).json();
+                        j.forEach(s => {
+                            const price = parseFloat(s.ClosingPrice?.replace(/,/g, '') || '');
+                            const change = parseFloat(s.Change?.replace(/[^-\d.]/g, '') || '0');
+                            if (!isNaN(price) && price > 0)
+                                map.set(s.Code, { price, prevClose: price - change, market: 'tse' });
+                        });
+                    } catch (e) { console.warn('[TWSE OpenAPI] 上市失敗', e); }
+                    try {
+                        const j = await (await fetch('https://www.tpex.org.tw/openapi/v1/tpex_mainboard_quotes')).json();
+                        j.forEach(s => {
+                            const price = parseFloat(s.Close?.replace(/,/g, '') || '');
+                            const change = parseFloat(s.Change?.replace(/[^-\d.]/g, '') || '0');
+                            if (!isNaN(price) && price > 0)
+                                map.set(s.SecuritiesCompanyCode, { price, prevClose: price - change, market: 'otc' });
+                        });
+                    } catch (e) { console.warn('[TPEx OpenAPI] 上櫃失敗', e); }
+                    return map;
+                };
+
+                // 主快照函式：盤中 → CF+MIS 即時，盤後 → Open API
+                // exChList: ['tse_2330.tw', 'otc_6415.tw', ...] 僅盤中需要
+                const fetchTwMarketSnapshot = async (exChList) => {
+                    const marketOpen = isTwMarketOpen();
+                    const cacheTtl = marketOpen ? 30 * 1000 : 5 * 60 * 1000; // 盤中 30 秒, 盤後 5 分鐘
+                    if (_twMarketCache && Date.now() - _twMarketCacheTs < cacheTtl) return _twMarketCache;
+
+                    let map = new Map();
+
+                    if (marketOpen && exChList && exChList.length > 0) {
+                        // ★ 盤中：CF Worker → MIS 批次即時報價（一次 request 搞定全部）
+                        try {
+                            const exCh = exChList.join('|');
+                            const misUrl = `https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=${exCh}&json=1&delay=0&t=${Date.now()}`;
+                            const j = await (await fetch(CF_PROXY + encodeURIComponent(misUrl))).json();
+                            if (j.msgArray?.length > 0) {
+                                j.msgArray.forEach(s => {
+                                    let price = s.z;
+                                    if (price === '-' || price === '') price = (s.pz !== '-' && s.pz !== '') ? s.pz : s.y;
+                                    const finalPrice = parseFloat(price);
+                                    const prevClose = parseFloat(s.y);
+                                    const market = s.ex === 'otc' ? 'otc' : 'tse';
+                                    if (!isNaN(finalPrice) && finalPrice > 0)
+                                        map.set(s.c, { price: finalPrice, prevClose: isNaN(prevClose) ? finalPrice : prevClose, market });
+                                });
+                                console.log(`[v3.8.0] 即時台股快照 (MIS)，共 ${map.size} 支`);
+                            }
+                        } catch (e) {
+                            console.warn('[MIS 即時] 失敗，fallback 至 Open API', e);
+                            map = await fetchTwSnapshotFromOpenApi();
                         }
+                    } else {
+                        // ★ 盤後：TWSE/TPEx Open API
+                        map = await fetchTwSnapshotFromOpenApi();
+                        console.log(`[v3.8.0] 台股快照 (Open API)，共 ${map.size} 支`);
                     }
+
+                    _twMarketCache = map;
+                    _twMarketCacheTs = Date.now();
+                    return map;
+                };
+
+
+                const fetchTwStockPrice = async (symbol) => {
+                    const cleanSym = symbol.replace(/\.(TW|TWO)$/i, '');
+                    const map = await fetchTwMarketSnapshot();
+                    const d = map.get(cleanSym);
+                    if (d) return { regularMarketPrice: d.price, previousClose: d.prevClose };
                     return null;
                 };
 
@@ -2750,22 +2820,16 @@
                     return null;
                 };
 
-                // 一次性偵測上市/上櫃 (v3.8.0: 直連 MIS，不走 proxy)
+                // 一次性偵測上市/上櫃 (v3.8.0: 用 Open API 快照偵測，不走 proxy)
                 const detectMarketType = async (stock) => {
                     if (stock.currency === 'USD') return 'us';
                     const cleanSym = stock.symbol.replace(/\.(TW|TWO)$/i, '');
-                    // 先試上市 (tse)
-                    try {
-                        const j = await (await fetch(`https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=tse_${cleanSym}.tw&json=1&delay=0`)).json();
-                        if (j.msgArray?.length > 0 && j.msgArray[0].n && j.msgArray[0].n !== '') return 'tse';
-                    } catch (e) { }
-                    // 再試上櫃 (otc)
-                    try {
-                        const j = await (await fetch(`https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=otc_${cleanSym}.tw&json=1&delay=0`)).json();
-                        if (j.msgArray?.length > 0 && j.msgArray[0].n && j.msgArray[0].n !== '') return 'otc';
-                    } catch (e) { }
+                    const map = await fetchTwMarketSnapshot();
+                    const d = map.get(cleanSym);
+                    if (d) return d.market; // 'tse' or 'otc'
                     return 'tse'; // 預設為上市
                 };
+
 
                 // 啟動時為未分類股票批次自動偵測（背景執行，不阻塞 UI）
                 const autoDetectMarketTypes = async (unclassified) => {
@@ -2782,29 +2846,14 @@
                     console.log('[v3.6.0] 偵測完成！');
                 };
 
-                // v3.6.0: 統一的股價抓取入口（自動走對的 API 路徑）
+                // v3.8.0: 統一的股價抓取入口
                 const fetchStockData = async (stock) => {
                     let mt = stock.marketType;
-                    // 若未設定 marketType，先偵測並儲存
-                    if (!mt) {
-                        mt = await detectMarketType(stock);
-                        await db.collection('users').doc(user.value.uid).collection('stocks').doc(stock.id).update({ marketType: mt });
-                        stock.marketType = mt;
-                    }
                     if (mt === 'us') {
                         return await fetchUsStockPrice(stock.symbol);
                     } else {
-                        // 台股：直接走 MIS API（台灣時段 9-13:30 有即時, 其他時段回昨收）
-                        let result = await fetchTwStockPrice(stock.symbol, mt);
-                        // 若失敗且是 tse，嘗試換 otc
-                        if (!result && mt === 'tse') {
-                            result = await fetchTwStockPrice(stock.symbol, 'otc');
-                            if (result) {
-                                await db.collection('users').doc(user.value.uid).collection('stocks').doc(stock.id).update({ marketType: 'otc' });
-                                stock.marketType = 'otc';
-                            }
-                        }
-                        return result;
+                        // 台股：Open API 自動分辨上市/上櫃
+                        return await fetchTwStockPrice(stock.symbol);
                     }
                 };
 
@@ -2813,28 +2862,17 @@
                     let s = symbol.toUpperCase();
                     const isTwStock = /^\d{4,6}[A-Z]?$/.test(s) || s.endsWith('.TW') || s.endsWith('.TWO');
 
-                    // 台股：直連 MIS
+                    // 台股：用 Open API 快照 lookup
                     if (isTwStock) {
                         const cleanSym = s.replace(/\.(TW|TWO)$/i, '');
-                        // 先試 tse，再試 otc
-                        for (const prefix of ['tse', 'otc']) {
-                            try {
-                                const j = await (await fetch(`https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=${prefix}_${cleanSym}.tw&json=1&delay=0&t=${Date.now()}`)).json();
-                                if (j.msgArray?.length > 0) {
-                                    const data = j.msgArray[0];
-                                    let price = data.z;
-                                    if (price === '-' || price === '') price = (data.pz !== '-' && data.pz !== '') ? data.pz : data.y;
-                                    const finalPrice = parseFloat(price);
-                                    const prevClose = parseFloat(data.y);
-                                    if (!isNaN(finalPrice) && finalPrice > 0) {
-                                        return {
-                                            symbol: `${cleanSym}.${prefix === 'otc' ? 'TWO' : 'TW'}`,
-                                            regularMarketPrice: finalPrice,
-                                            previousClose: isNaN(prevClose) ? finalPrice : prevClose
-                                        };
-                                    }
-                                }
-                            } catch (e) { /* 試下一個 */ }
+                        const map = await fetchTwMarketSnapshot();
+                        const d = map.get(cleanSym);
+                        if (d) {
+                            return {
+                                symbol: `${cleanSym}.${d.market === 'otc' ? 'TWO' : 'TW'}`,
+                                regularMarketPrice: d.price,
+                                previousClose: d.prevClose
+                            };
                         }
                         return null;
                     }
@@ -2899,16 +2937,30 @@
                     }
 
                     // =========================================================
-                    // 第二步：開始更新股票迴圈
+                    // 第二步：台股先批次預載快照（盤中走 MIS 即時，盤後走 Open API）
+                    // =========================================================
+                    if (marketType === 'TW') {
+                        _twMarketCache = null; // 強制重新抓，不沿用舊快照
+                        const exChList = targetStocks.map(stock => {
+                            const clean = stock.symbol.replace(/\.(TW|TWO)$/i, '');
+                            const mt = stock.marketType === 'otc' ? 'otc' : 'tse';
+                            return `${mt}_${clean}.tw`;
+                        });
+                        await fetchTwMarketSnapshot(exChList); // 預載快照，後面各股 lookup 直接用
+                    }
+
+                    // =========================================================
+                    // 第三步：開始更新股票迴圈
                     // =========================================================
                     const batch = db.batch();
                     let hasUpdates = false;
                     let successCount = 0;
                     let failCount = 0;
 
-                    // ★ [v3.8.0] 台股並行最多 5 支同時抓取，美股批次間休息 1200ms (Finnhub 60 req/min)
-                    const CONCURRENT_LIMIT = marketType === 'US' ? 3 : 5;
-                    const BATCH_DELAY = marketType === 'US' ? 1200 : 400;
+                    // 台股：快照已預載，迴圈純 lookup（可大並行）；美股：Finnhub 60 req/min
+                    const CONCURRENT_LIMIT = marketType === 'US' ? 3 : 10;
+                    const BATCH_DELAY = marketType === 'US' ? 1200 : 0;
+
                     for (let i = 0; i < targetStocks.length; i += CONCURRENT_LIMIT) {
                         const batchStocks = targetStocks.slice(i, i + CONCURRENT_LIMIT);
                         batchStocks.forEach(stock => { stockStates.value[stock.id] = 'loading'; });
