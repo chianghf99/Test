@@ -2711,14 +2711,16 @@
                 };
 
 
-                // ★★★ v3.6.0: 直接 MIS API 抓台股 (上市/上櫃)，不再等 Google Finance ★★★
-                const GAS_PROXY = 'https://script.google.com/macros/s/AKfycbyN4Yib6hdb01-XHP7jlAHFuSkqBd7iqqRd80pDeMia_SpJQ7SM6MPxhaBwF6vJ-kY/exec?url=';
+                // ★★★ v3.8.0: 直連 API，移除 GAS Proxy ★★★
+                // 台股：直接打 MIS TWSE (CORS 允許)
+                // 美股：Finnhub REST API (60 req/min 免費)
+                const FINNHUB_API_KEY = 'd6klt59r01qg51f4ff00d6klt59r01qg51f4ff0g';
 
                 const fetchTwStockPrice = async (symbol, marketType) => {
                     const cleanSym = symbol.replace(/\.(TW|TWO)$/i, '');
                     const prefix = (marketType === 'otc') ? 'otc' : 'tse';
                     const misUrl = `https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=${prefix}_${cleanSym}.tw&json=1&delay=0&t=${Date.now()}`;
-                    const r = await fetch(GAS_PROXY + encodeURIComponent(misUrl));
+                    const r = await fetch(misUrl);
                     const j = await r.json();
                     if (j.msgArray && j.msgArray.length > 0) {
                         const data = j.msgArray[0];
@@ -2735,36 +2737,31 @@
 
                 const fetchUsStockPrice = async (symbol) => {
                     try {
-                        const targetUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?range=1d&interval=1m&t=${Date.now()}`;
-                        const r = await fetch(GAS_PROXY + encodeURIComponent(targetUrl));
+                        const r = await fetch(`https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${FINNHUB_API_KEY}`);
                         const j = await r.json();
-                        if (j.chart?.result?.length) {
-                            const meta = j.chart.result[0].meta;
-                            if (meta.regularMarketPrice) {
-                                return {
-                                    regularMarketPrice: meta.regularMarketPrice,
-                                    previousClose: meta.chartPreviousClose || meta.previousClose || meta.regularMarketPrice
-                                };
-                            }
+                        // Finnhub: c = current, pc = previous close
+                        if (j.c && j.c > 0) {
+                            return {
+                                regularMarketPrice: j.c,
+                                previousClose: j.pc || j.c
+                            };
                         }
                     } catch (e) { /* silent */ }
                     return null;
                 };
 
-                // 一次性偵測上市/上櫃
+                // 一次性偵測上市/上櫃 (v3.8.0: 直連 MIS，不走 proxy)
                 const detectMarketType = async (stock) => {
                     if (stock.currency === 'USD') return 'us';
                     const cleanSym = stock.symbol.replace(/\.(TW|TWO)$/i, '');
                     // 先試上市 (tse)
                     try {
-                        const url = GAS_PROXY + encodeURIComponent(`https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=tse_${cleanSym}.tw&json=1&delay=0`);
-                        const j = await (await fetch(url)).json();
+                        const j = await (await fetch(`https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=tse_${cleanSym}.tw&json=1&delay=0`)).json();
                         if (j.msgArray?.length > 0 && j.msgArray[0].n && j.msgArray[0].n !== '') return 'tse';
                     } catch (e) { }
                     // 再試上櫃 (otc)
                     try {
-                        const url = GAS_PROXY + encodeURIComponent(`https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=otc_${cleanSym}.tw&json=1&delay=0`);
-                        const j = await (await fetch(url)).json();
+                        const j = await (await fetch(`https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=otc_${cleanSym}.tw&json=1&delay=0`)).json();
                         if (j.msgArray?.length > 0 && j.msgArray[0].n && j.msgArray[0].n !== '') return 'otc';
                     } catch (e) { }
                     return 'tse'; // 預設為上市
@@ -2811,177 +2808,49 @@
                     }
                 };
 
-                // ★★★ 最終版 getYahooData (Google 優先 + 官方 MIS 備援) ★★★
+                // ★★★ v3.8.0: getYahooData 改為直連版 (台股→MIS，美股→Finnhub) ★★★
                 const getYahooData = async (symbol) => {
                     let s = symbol.toUpperCase();
+                    const isTwStock = /^\d{4,6}[A-Z]?$/.test(s) || s.endsWith('.TW') || s.endsWith('.TWO');
 
-                    let yahooSymbol = s;
-                    let googleSymbol = s;
-                    let expectedCurrency = 'TWD';
-
-                    // 區分美股與台股代號格式
-                    if (/^\d{4,6}[A-Z]?$/.test(s)) {
-                        yahooSymbol = s + '.TW';
-                        googleSymbol = s + ':TPE';
-                    } else {
-                        expectedCurrency = 'USD';
-                    }
-
-                    const myGasProxy = 'https://script.google.com/macros/s/AKfycbyN4Yib6hdb01-XHP7jlAHFuSkqBd7iqqRd80pDeMia_SpJQ7SM6MPxhaBwF6vJ-kY/exec?url=';
-
-                    // [資料新鮮度檢查]
-                    const isDataStale = (timestamp) => {
-                        if (!timestamp) return true;
-                        // 統一轉成毫秒
-                        const dataTime = (timestamp < 10000000000) ? timestamp * 1000 : timestamp;
-
-                        const now = new Date();
-                        const hoursDiff = (now.getTime() - dataTime) / (1000 * 60 * 60);
-                        const day = now.getDay();
-                        const hour = now.getHours();
-
-                        // 1. 早上 9 點前 (開盤前)：顯示昨收，不算過期
-                        if (hour < 9) return false;
-
-                        // 2. 早上 9 點後 (開盤後)：嚴格檢查
-                        // 週一：允許 68 小時內的資料 (週五收盤價)
-                        if (day === 1) return hoursDiff > 68;
-
-                        // 平日：超過 18 小時沒更新視為過期
-                        const isWeekday = day >= 2 && day <= 5;
-                        return isWeekday && hoursDiff > 18;
-                    };
-
-                    // =========================================================
-                    // 🛑 第一關：Google Finance (優先使用)
-                    // =========================================================
-                    try {
-                        const targetUrl = `https://www.google.com/finance/quote/${googleSymbol}`;
-                        const url = myGasProxy + encodeURIComponent(targetUrl);
-                        const r = await fetch(url);
-                        const html = await r.text();
-
-                        if (expectedCurrency === 'TWD' && !html.includes('TWD') && !html.includes('NT$')) {
-                            throw new Error('Currency mismatch');
-                        }
-
-                        const priceMatch = html.match(/<div class="YMlKec fxKbKc">([^<]+)<\/div>/);
-                        const prevMatch = html.match(/<div class="P6K39c">([^<]+)<\/div>/);
-
-                        if (priceMatch) {
-                            const cleanNumber = (str) => parseFloat(str.replace(/[^0-9.]/g, ''));
-                            const currentPrice = cleanNumber(priceMatch[1]);
-                            let previousClose = currentPrice;
-                            if (prevMatch) previousClose = cleanNumber(prevMatch[1]);
-
-                            if (!isNaN(currentPrice)) {
-                                return {
-                                    symbol: yahooSymbol,
-                                    regularMarketPrice: currentPrice,
-                                    previousClose: previousClose
-                                };
-                            }
-                        }
-                    } catch (e) {
-                        // Google 失敗，安靜地進入第二關
-                    }
-
-                    // =========================================================
-                    // 🛑 第二關：備用數據源 (台股用 MIS 官方，美股用 Yahoo v8)
-                    // =========================================================
-                    const fetchBackup = async (targetSymbol) => {
-
-                        // A. 台股專用：證交所/櫃買中心 官方 MIS API (維持不變)
-                        if (targetSymbol.endsWith('.TW') || targetSymbol.endsWith('.TWO')) {
+                    // 台股：直連 MIS
+                    if (isTwStock) {
+                        const cleanSym = s.replace(/\.(TW|TWO)$/i, '');
+                        // 先試 tse，再試 otc
+                        for (const prefix of ['tse', 'otc']) {
                             try {
-                                let misSymbol = "";
-                                if (targetSymbol.endsWith('.TWO')) {
-                                    misSymbol = `otc_${targetSymbol.replace('.TWO', '')}.tw`;
-                                } else {
-                                    misSymbol = `tse_${targetSymbol.replace('.TW', '')}.tw`;
-                                }
-
-                                const misUrl = `https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=${misSymbol}&json=1&delay=0&t=${Date.now()}`;
-                                const url = myGasProxy + encodeURIComponent(misUrl);
-
-                                const r = await fetch(url);
-                                const j = await r.json();
-
-                                if (j.msgArray && j.msgArray.length > 0) {
+                                const j = await (await fetch(`https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=${prefix}_${cleanSym}.tw&json=1&delay=0&t=${Date.now()}`)).json();
+                                if (j.msgArray?.length > 0) {
                                     const data = j.msgArray[0];
-                                    let currentPrice = data.z;
-                                    let prevClose = data.y;
-
-                                    if (currentPrice === '-') {
-                                        if (data.pz !== '-') currentPrice = data.pz;
-                                        else currentPrice = prevClose;
-                                    }
-
-                                    const finalPrice = parseFloat(currentPrice);
-                                    const finalPrev = parseFloat(prevClose);
-
-                                    if (!isNaN(finalPrice)) {
+                                    let price = data.z;
+                                    if (price === '-' || price === '') price = (data.pz !== '-' && data.pz !== '') ? data.pz : data.y;
+                                    const finalPrice = parseFloat(price);
+                                    const prevClose = parseFloat(data.y);
+                                    if (!isNaN(finalPrice) && finalPrice > 0) {
                                         return {
-                                            symbol: targetSymbol,
+                                            symbol: `${cleanSym}.${prefix === 'otc' ? 'TWO' : 'TW'}`,
                                             regularMarketPrice: finalPrice,
-                                            previousClose: finalPrev
+                                            previousClose: isNaN(prevClose) ? finalPrice : prevClose
                                         };
                                     }
                                 }
-                            } catch (twErr) {
-                                console.warn(`[MIS Fail] ${targetSymbol}`, twErr);
-                            }
+                            } catch (e) { /* 試下一個 */ }
                         }
-
-                        // B. 非台股 (美股等)：改回使用 Yahoo Global v8 Chart API
-                        // 原因：v7 Quote API 容易被擋，但 v8 Chart API 對美股支援度很高
-                        try {
-                            const targetUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${targetSymbol}?range=1d&interval=1m&events=div,splits&t=${Date.now()}`;
-                            const url = myGasProxy + encodeURIComponent(targetUrl);
-                            const r = await fetch(url);
-                            const j = await r.json();
-
-                            if (j.chart?.result?.length) {
-                                const res = j.chart.result[0];
-                                const meta = res.meta;
-
-                                // 美股通常 meta 裡的資料就是即時的
-                                let lastPrice = meta.regularMarketPrice;
-                                let lastTime = meta.regularMarketTime;
-
-                                // 守門員檢查
-                                if (isDataStale(lastTime)) {
-                                    throw new Error(`Data stale`);
-                                }
-
-                                return {
-                                    symbol: meta.symbol,
-                                    regularMarketPrice: lastPrice,
-                                    previousClose: meta.chartPreviousClose || meta.previousClose
-                                };
-                            }
-                        } catch (e) {
-                            // 失敗
-                        }
-                        throw new Error("All sources failed");
-                    };
-
-                    // =========================================================
-                    // 執行備用方案 (自動處理上市上櫃切換)
-                    // =========================================================
-                    try {
-                        return await fetchBackup(yahooSymbol);
-                    } catch (e) {
-                        // 如果原本是用 .TW 失敗，且是上櫃格式，試試看 .TWO
-                        if (yahooSymbol.endsWith('.TW')) {
-                            try {
-                                const twoSymbol = yahooSymbol.replace('.TW', '.TWO');
-                                return await fetchBackup(twoSymbol);
-                            } catch (e2) {
-                                console.error(`Final fail for ${s}`);
-                            }
-                        }
+                        return null;
                     }
+
+                    // 美股 / 匯率：直連 Finnhub
+                    try {
+                        const r = await fetch(`https://finnhub.io/api/v1/quote?symbol=${s}&token=${FINNHUB_API_KEY}`);
+                        const j = await r.json();
+                        if (j.c && j.c > 0) {
+                            return {
+                                symbol: s,
+                                regularMarketPrice: j.c,
+                                previousClose: j.pc || j.c
+                            };
+                        }
+                    } catch (e) { /* silent */ }
                     return null;
                 };
                 const autoFetchName = async () => { const s = form.value.symbol; if (!s) return; if (/^\d/.test(s)) { form.value.currency = 'TWD'; } else if (/^[A-Za-z]+$/.test(s)) { form.value.currency = 'USD'; form.value.marketType = 'us'; } if (!form.value.name) form.value.name = '查詢中...'; const d = await getYahooData(s); if (d) { if (form.value.name === '查詢中...') form.value.name = d.symbol; form.value.currentPrice = d.regularMarketPrice; form.value.previousClose = d.previousClose; } else { if (form.value.name === '查詢中...') form.value.name = ''; alert('查無代號'); } };
@@ -3012,32 +2881,21 @@
                     loadingTarget.value = marketType;
 
                     // =========================================================
-                    // ★★★ 第一步：不管按哪個按鈕，都先強制更新匯率 ★★★
-                    // (確保不管是看台股還是美股，總資產的匯率計算都是最新的)
+                    // ★★★ 第一步：更新匯率 (直連 exchangerate-api.com) ★★★
                     // =========================================================
                     try {
-                        // 呼叫 getYahooData 抓美金匯率 (Google 優先 -> Yahoo 備援)
-                        // 注意：Google Finance 的匯率代號通常是 USD-TWD，Yahoo 是 USDTWD=X
-                        // 這裡我們傳 Yahoo 格式，因為我們的 getYahooData 備援機制對 Yahoo v8 支援度很好
-                        const rateData = await getYahooData('USDTWD=X');
-
-                        if (rateData && rateData.regularMarketPrice) {
-                            const newRate = rateData.regularMarketPrice;
-
-                            // A. 更新畫面上的匯率變數
-                            if (typeof exchangeRate !== 'undefined') {
-                                exchangeRate.value = newRate;
-                            }
-
-                            // B. 順便存入 Firebase settings (下次進來就是新的)
+                        const rateResp = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
+                        const rateJson = await rateResp.json();
+                        const newRate = rateJson.rates.TWD;
+                        if (newRate && newRate > 0) {
+                            exchangeRate.value = newRate;
                             await db.collection('users').doc(user.value.uid).collection('settings').doc('config').set({
                                 exchangeRate: newRate
                             }, { merge: true });
-
                             console.log(`匯率已更新: ${newRate}`);
                         }
                     } catch (e) {
-                        console.warn("匯率更新失敗，將沿用舊匯率", e);
+                        console.warn('匯率更新失敗，將没用舊匯率', e);
                     }
 
                     // =========================================================
@@ -3048,8 +2906,9 @@
                     let successCount = 0;
                     let failCount = 0;
 
-                    // ★ [v3.6.0] 並行更新，每批最多 3 支同時抓取，批次間休息 800ms
-                    const CONCURRENT_LIMIT = 3;
+                    // ★ [v3.8.0] 台股並行最多 5 支同時抓取，美股批次間休息 1200ms (Finnhub 60 req/min)
+                    const CONCURRENT_LIMIT = marketType === 'US' ? 3 : 5;
+                    const BATCH_DELAY = marketType === 'US' ? 1200 : 400;
                     for (let i = 0; i < targetStocks.length; i += CONCURRENT_LIMIT) {
                         const batchStocks = targetStocks.slice(i, i + CONCURRENT_LIMIT);
                         batchStocks.forEach(stock => { stockStates.value[stock.id] = 'loading'; });
@@ -3080,7 +2939,7 @@
                         }));
 
                         if (i + CONCURRENT_LIMIT < targetStocks.length) {
-                            await new Promise(r => setTimeout(r, 800));
+                            await new Promise(r => setTimeout(r, BATCH_DELAY));
                         }
                     }
 
