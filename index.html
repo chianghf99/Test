@@ -2730,11 +2730,11 @@
                     return day >= 1 && day <= 5 && totalMin >= 540 && totalMin <= 815; // 9:00~13:35
                 };
 
-                // 從 TWSE/TPEx Open API 抓當日收盤（盤後用）
+                // 從 TWSE/TPEx Open API 抓當日收盤（盤後用），透過 CF Proxy 避免 CORS
                 const fetchTwSnapshotFromOpenApi = async () => {
                     const map = new Map();
                     try {
-                        const j = await (await fetch('https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL')).json();
+                        const j = await (await fetch(CF_PROXY + encodeURIComponent('https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL'))).json();
                         j.forEach(s => {
                             const price = parseFloat(s.ClosingPrice?.replace(/,/g, '') || '');
                             const change = parseFloat(s.Change?.replace(/[^-\d.]/g, '') || '0');
@@ -2743,7 +2743,7 @@
                         });
                     } catch (e) { console.warn('[TWSE OpenAPI] 上市失敗', e); }
                     try {
-                        const j = await (await fetch('https://www.tpex.org.tw/openapi/v1/tpex_mainboard_quotes')).json();
+                        const j = await (await fetch(CF_PROXY + encodeURIComponent('https://www.tpex.org.tw/openapi/v1/tpex_mainboard_quotes'))).json();
                         j.forEach(s => {
                             const price = parseFloat(s.Close?.replace(/,/g, '') || '');
                             const change = parseFloat(s.Change?.replace(/[^-\d.]/g, '') || '0');
@@ -2753,6 +2753,7 @@
                     } catch (e) { console.warn('[TPEx OpenAPI] 上櫃失敗', e); }
                     return map;
                 };
+
 
                 // 主快照函式：盤中 → CF+MIS 即時，盤後 → Open API
                 // exChList: ['tse_2330.tw', 'otc_6415.tw', ...] 僅盤中需要
