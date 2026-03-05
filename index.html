@@ -2782,10 +2782,16 @@
                                 });
                                 console.log(`[v3.8.0] 台股快照 (MIS)，共 ${map.size} 支`);
                             }
+                            // MIS 沒回傳任何資料 → fallback
+                            if (map.size === 0) {
+                                console.warn('[MIS] msgArray 空，fallback 至 Open API');
+                                map = await fetchTwSnapshotFromOpenApi();
+                            }
                         } catch (e) {
                             console.warn('[MIS] 失敗，fallback 至 Open API', e);
                             map = await fetchTwSnapshotFromOpenApi();
                         }
+
                     } else {
                         // 無 exChList：用 Open API（偵測上市/上櫃用）
                         map = await fetchTwSnapshotFromOpenApi();
@@ -2942,14 +2948,18 @@
                     // 第二步：台股先批次預載快照（盤中走 MIS 即時，盤後走 Open API）
                     // =========================================================
                     if (marketType === 'TW') {
-                        _twMarketCache = null; // 強制重新抓，不沿用舊快照
-                        const exChList = targetStocks.map(stock => {
+                        _twMarketCache = null; // 強制重新抓
+                        // 每支股票同時送 tse + otc 兩個前綴，讓 MIS 自動回傳對的那個
+                        // 避免因為 marketType 記錯導致找不到股票
+                        const exChList = targetStocks.flatMap(stock => {
                             const clean = stock.symbol.replace(/\.(TW|TWO)$/i, '');
-                            const mt = stock.marketType === 'otc' ? 'otc' : 'tse';
-                            return `${mt}_${clean}.tw`;
+                            if (stock.marketType === 'otc') return [`otc_${clean}.tw`];
+                            if (stock.marketType === 'tse') return [`tse_${clean}.tw`];
+                            return [`tse_${clean}.tw`, `otc_${clean}.tw`]; // 未知：兩個都試
                         });
-                        await fetchTwMarketSnapshot(exChList); // 預載快照，後面各股 lookup 直接用
+                        await fetchTwMarketSnapshot(exChList);
                     }
+
 
                     // =========================================================
                     // 第三步：開始更新股票迴圈
