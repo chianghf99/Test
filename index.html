@@ -2762,6 +2762,26 @@
                     return map;
                 };
 
+                // 通用的 retry + timeout 包装函式 (retry=重試次數, timeoutMs=超時限制)
+                const fetchWithRetry = async (url, retry = 1, timeoutMs = 8000) => {
+                    for (let i = 0; i <= retry; i++) {
+                        try {
+                            const controller = new AbortController();
+                            const tid = setTimeout(() => controller.abort(), timeoutMs);
+                            const resp = await fetch(url, { signal: controller.signal });
+                            clearTimeout(tid);
+                            return resp;
+                        } catch (e) {
+                            if (i < retry) {
+                                console.warn(`[Fetch] 失敗，${i + 1} 秒後重試...`, url);
+                                await new Promise(r => setTimeout(r, (i + 1) * 600));
+                            } else {
+                                throw e;
+                            }
+                        }
+                    }
+                };
+
                 // MIS 抓取函式 (支援分塊以避開 URL 長度限制)
                 const fetchMisTwse = async (exChList) => {
                     const map = new Map();
@@ -2778,7 +2798,7 @@
                         try {
                             const exCh = chunk.join('|');
                             const misUrl = `https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=${exCh}&json=1&delay=0&t=${Date.now()}`;
-                            const j = await (await fetch(CF_PROXY + encodeURIComponent(misUrl))).json();
+                            const j = await (await fetchWithRetry(CF_PROXY + encodeURIComponent(misUrl), 1, 8000)).json();
                             if (j.msgArray?.length > 0) {
                                 j.msgArray.forEach(s => {
                                     let price = s.z;
@@ -2791,7 +2811,7 @@
                                 });
                             }
                         } catch (e) {
-                            console.warn('[MIS] 批次抓取失敗', e);
+                            console.warn('[MIS] 批次抓取失敗 (已重試)', e);
                         }
                         // 稍微等待，避免瞬間請求過多
                         await new Promise(r => setTimeout(r, 300));
@@ -2848,19 +2868,23 @@
                 };
 
                 const fetchUsStockPrice = async (symbol) => {
-                    try {
-                        const r = await fetch(`https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${FINNHUB_API_KEY}`);
-                        const j = await r.json();
-                        // Finnhub: c = current, pc = previous close
-                        if (j.c && j.c > 0) {
-                            // 若非美股一般交易時段，強制顯示昨收價
-                            const current = isUsMarketOpen() ? j.c : (j.pc || j.c);
-                            return {
-                                regularMarketPrice: current,
-                                previousClose: j.pc || j.c
-                            };
+                    for (let attempt = 0; attempt <= 1; attempt++) {
+                        try {
+                            const r = await fetchWithRetry(`https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${FINNHUB_API_KEY}`, 1, 8000);
+                            const j = await r.json();
+                            // Finnhub: c = current, pc = previous close
+                            if (j.c && j.c > 0) {
+                                // 若非美股一般交易時段，強制顯示昨收價
+                                const current = isUsMarketOpen() ? j.c : (j.pc || j.c);
+                                return {
+                                    regularMarketPrice: current,
+                                    previousClose: j.pc || j.c
+                                };
+                            }
+                        } catch (e) {
+                            console.warn(`[Finnhub] ${symbol} 失敗`, e);
                         }
-                    } catch (e) { /* silent */ }
+                    }
                     return null;
                 };
 
