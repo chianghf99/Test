@@ -2836,14 +2836,27 @@
                     return null;
                 };
 
+                // 判斷美股是否盤中 (簡單以時區判斷)
+                const isUsMarketOpen = () => {
+                    const nyTime = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
+                    const day = nyTime.getDay();
+                    const hours = nyTime.getHours();
+                    const minutes = nyTime.getMinutes();
+                    const totalMin = hours * 60 + minutes;
+                    // 美東時間週一到週五，9:30 (570) 到 16:00 (960)
+                    return day >= 1 && day <= 5 && totalMin >= 570 && totalMin < 960;
+                };
+
                 const fetchUsStockPrice = async (symbol) => {
                     try {
                         const r = await fetch(`https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${FINNHUB_API_KEY}`);
                         const j = await r.json();
                         // Finnhub: c = current, pc = previous close
                         if (j.c && j.c > 0) {
+                            // 若非美股一般交易時段，強制顯示昨收價
+                            const current = isUsMarketOpen() ? j.c : (j.pc || j.c);
                             return {
-                                regularMarketPrice: j.c,
+                                regularMarketPrice: current,
                                 previousClose: j.pc || j.c
                             };
                         }
@@ -2924,9 +2937,10 @@
                         const r = await fetch(`https://finnhub.io/api/v1/quote?symbol=${s}&token=${FINNHUB_API_KEY}`);
                         const j = await r.json();
                         if (j.c && j.c > 0) {
+                            const current = isUsMarketOpen() ? j.c : (j.pc || j.c);
                             return {
                                 symbol: s,
-                                regularMarketPrice: j.c,
+                                regularMarketPrice: current,
                                 previousClose: j.pc || j.c
                             };
                         }
