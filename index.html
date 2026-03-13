@@ -2872,12 +2872,11 @@
                         try {
                             const r = await fetchWithRetry(`https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${FINNHUB_API_KEY}`, 1, 8000);
                             const j = await r.json();
-                            // Finnhub: c = current, pc = previous close
+                            // Finnhub: c = 最新成交價(盤中即時/盤後即為當日收盤), pc = 前一個交易日收盤
+                            // 注意：盤後 j.c 就是當日收盤，不應再 fallback 到 j.pc（那才是更前一天）
                             if (j.c && j.c > 0) {
-                                // 若非美股一般交易時段，強制顯示昨收價
-                                const current = isUsMarketOpen() ? j.c : (j.pc || j.c);
                                 return {
-                                    regularMarketPrice: current,
+                                    regularMarketPrice: j.c,
                                     previousClose: j.pc || j.c
                                 };
                             }
@@ -2961,10 +2960,9 @@
                         const r = await fetch(`https://finnhub.io/api/v1/quote?symbol=${s}&token=${FINNHUB_API_KEY}`);
                         const j = await r.json();
                         if (j.c && j.c > 0) {
-                            const current = isUsMarketOpen() ? j.c : (j.pc || j.c);
                             return {
                                 symbol: s,
-                                regularMarketPrice: current,
+                                regularMarketPrice: j.c,
                                 previousClose: j.pc || j.c
                             };
                         }
