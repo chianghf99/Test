@@ -571,6 +571,32 @@
                         </div>
 
                         <div class="h-64 md:h-80 w-full relative"><canvas id="assetChart"></canvas></div>
+
+                        <!-- 期間損益 -->
+                        <div v-if="chartPnl.amount !== null" class="mt-4 flex flex-wrap items-center gap-3 px-1">
+                            <div class="flex flex-col">
+                                <span class="text-xs text-gray-400 dark:text-gray-500 font-medium">期間淨資產損益</span>
+                                <div class="flex items-baseline gap-2 mt-0.5">
+                                    <span class="text-lg font-bold" :class="chartPnl.amount >= 0 ? 'text-up' : 'text-down'">
+                                        {{ chartPnl.amount >= 0 ? '+' : '' }}{{ formatCurrency(chartPnl.amount, 'TWD') }}
+                                    </span>
+                                    <span class="text-sm font-semibold px-1.5 py-0.5 rounded"
+                                        :class="chartPnl.pct >= 0 ? 'bg-green-100 dark:bg-green-900/40 text-green-600 dark:text-green-400' : 'bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400'">
+                                        {{ chartPnl.pct >= 0 ? '+' : '' }}{{ chartPnl.pct.toFixed(2) }}%
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="flex gap-4 ml-auto text-xs text-gray-400 dark:text-gray-500">
+                                <div class="text-right">
+                                    <div>起始</div>
+                                    <div class="font-medium text-gray-600 dark:text-gray-300">{{ formatCurrency(chartPnl.startVal, 'TWD') }}</div>
+                                </div>
+                                <div class="text-right">
+                                    <div>結束</div>
+                                    <div class="font-medium text-gray-600 dark:text-gray-300">{{ formatCurrency(chartPnl.endVal, 'TWD') }}</div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </transition>
 
@@ -2153,6 +2179,7 @@
                 const fileInput = ref(null);
 
                 const chartStartDate = ref(''); const chartEndDate = ref('');
+                const chartPnl = ref({ amount: null, pct: null, startVal: null, endVal: null });
                 const currentRange = ref('1M');
                 const divRange = ref('YTD');
                 const divSearchQuery = ref('');
@@ -2478,7 +2505,57 @@
                 const updateLoanBalance = async (loanId, amount) => { if (!user.value || !loanId) return; const ref = db.collection('users').doc(user.value.uid).collection('loans').doc(loanId); const doc = await ref.get(); if (doc.exists) { const newBal = (doc.data().balance || 0) + amount; await ref.update({ balance: newBal }); } };
                 const fetchPreviousDayData = async (uid) => { const todayStr = getLocalDate(); const snap = await db.collection('users').doc(uid).collection('history').orderBy('date', 'desc').limit(2).get(); if (snap.empty) return; const docs = snap.docs.map(d => d.data()); if (docs[0].date !== todayStr) prevDayData.value = docs[0]; else if (docs.length > 1) prevDayData.value = docs[1]; };
 
-                const drawChart = async () => { if (!user.value || !document.getElementById('assetChart')) return; const snap = await db.collection('users').doc(user.value.uid).collection('history').where('date', '>=', chartStartDate.value).where('date', '<=', chartEndDate.value).orderBy('date', 'asc').get(); const d = snap.docs.map(x => x.data()); if (chartInstance) chartInstance.destroy(); const isDark = document.documentElement.classList.contains('dark'); const totalColor = isDark ? '#a78bfa' : '#1f2937'; const gridColor = isDark ? '#374151' : '#e5e7eb'; chartInstance = new Chart(document.getElementById('assetChart').getContext('2d'), { type: 'line', data: { labels: d.map(x => x.date), datasets: [{ label: '淨資產 (Net Worth)', data: d.map(x => { const asset = (x.twVal || 0) + (x.twCash || 0) + ((x.usVal || 0) + (x.usCash || 0)) * exchangeRate.value; const loan = x.loan || 0; return asset - loan; }), borderColor: totalColor, fill: true, backgroundColor: isDark ? 'rgba(167, 139, 250, 0.1)' : 'rgba(31,41,55,0.1)', tension: 0.3 }, { label: '台股 (Stock)', data: d.map(x => x.twVal), borderColor: '#3b82f6', hidden: true, tension: 0.3 }, { label: '美股 (Stock TWD)', data: d.map(x => x.usVal * exchangeRate.value), borderColor: '#ef4444', hidden: true, tension: 0.3 }, { label: '台股帳戶 (Stock+Cash)', data: d.map(x => (x.twVal || 0) + (x.twCash || 0)), borderColor: '#93c5fd', borderDash: [5, 5], hidden: true, tension: 0.3 }, { label: '美股帳戶 (Stock+Cash)', data: d.map(x => ((x.usVal || 0) + (x.usCash || 0)) * exchangeRate.value), borderColor: '#fca5a5', borderDash: [5, 5], hidden: true, tension: 0.3 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { ticks: { callback: v => 'NT$' + (v / 10000).toFixed(0) + '萬', color: isDark ? '#9ca3af' : '#666' }, grid: { color: gridColor } }, x: { ticks: { color: isDark ? '#9ca3af' : '#666' }, grid: { color: gridColor } } }, plugins: { legend: { labels: { color: isDark ? '#e5e7eb' : '#666' } } } } }); };
+                const drawChart = async () => {
+                    if (!user.value || !document.getElementById('assetChart')) return;
+                    const snap = await db.collection('users').doc(user.value.uid).collection('history')
+                        .where('date', '>=', chartStartDate.value)
+                        .where('date', '<=', chartEndDate.value)
+                        .orderBy('date', 'asc').get();
+                    const d = snap.docs.map(x => x.data());
+
+                    // 計算期間損益
+                    const calcNetWorth = x => {
+                        const asset = (x.twVal || 0) + (x.twCash || 0) + ((x.usVal || 0) + (x.usCash || 0)) * exchangeRate.value;
+                        return asset - (x.loan || 0);
+                    };
+                    if (d.length >= 2) {
+                        const startVal = calcNetWorth(d[0]);
+                        const endVal = calcNetWorth(d[d.length - 1]);
+                        const amount = endVal - startVal;
+                        const pct = startVal !== 0 ? (amount / Math.abs(startVal)) * 100 : 0;
+                        chartPnl.value = { amount, pct, startVal, endVal };
+                    } else if (d.length === 1) {
+                        chartPnl.value = { amount: 0, pct: 0, startVal: calcNetWorth(d[0]), endVal: calcNetWorth(d[0]) };
+                    } else {
+                        chartPnl.value = { amount: null, pct: null, startVal: null, endVal: null };
+                    }
+
+                    if (chartInstance) chartInstance.destroy();
+                    const isDark = document.documentElement.classList.contains('dark');
+                    const totalColor = isDark ? '#a78bfa' : '#1f2937';
+                    const gridColor = isDark ? '#374151' : '#e5e7eb';
+                    chartInstance = new Chart(document.getElementById('assetChart').getContext('2d'), {
+                        type: 'line',
+                        data: {
+                            labels: d.map(x => x.date),
+                            datasets: [
+                                { label: '淨資產 (Net Worth)', data: d.map(calcNetWorth), borderColor: totalColor, fill: true, backgroundColor: isDark ? 'rgba(167, 139, 250, 0.1)' : 'rgba(31,41,55,0.1)', tension: 0.3 },
+                                { label: '台股 (Stock)', data: d.map(x => x.twVal), borderColor: '#3b82f6', hidden: true, tension: 0.3 },
+                                { label: '美股 (Stock TWD)', data: d.map(x => x.usVal * exchangeRate.value), borderColor: '#ef4444', hidden: true, tension: 0.3 },
+                                { label: '台股帳戶 (Stock+Cash)', data: d.map(x => (x.twVal || 0) + (x.twCash || 0)), borderColor: '#93c5fd', borderDash: [5, 5], hidden: true, tension: 0.3 },
+                                { label: '美股帳戶 (Stock+Cash)', data: d.map(x => ((x.usVal || 0) + (x.usCash || 0)) * exchangeRate.value), borderColor: '#fca5a5', borderDash: [5, 5], hidden: true, tension: 0.3 }
+                            ]
+                        },
+                        options: {
+                            responsive: true, maintainAspectRatio: false,
+                            scales: {
+                                y: { ticks: { callback: v => 'NT$' + (v / 10000).toFixed(0) + '萬', color: isDark ? '#9ca3af' : '#666' }, grid: { color: gridColor } },
+                                x: { ticks: { color: isDark ? '#9ca3af' : '#666' }, grid: { color: gridColor } }
+                            },
+                            plugins: { legend: { labels: { color: isDark ? '#e5e7eb' : '#666' } } }
+                        }
+                    });
+                };
                 const drawPieCharts = () => { if (pieTwInstance) pieTwInstance.destroy(); if (pieUsInstance) pieUsInstance.destroy(); const tooltipOptions = { callbacks: { label: function (c) { const l = c.label || ''; const v = c.raw; const t = c.chart._metasets[c.datasetIndex].total; const p = t > 0 ? ((v / t) * 100).toFixed(1) + '%' : '0%'; const fv = c.chart.canvas.id === 'pieTw' ? formatCurrency(v, 'TWD') : formatCurrency(v, 'USD'); return `${l}: ${fv} (${p})`; } } }; if (document.getElementById('pieTw') && twStockList.value.length) pieTwInstance = new Chart(document.getElementById('pieTw'), { type: 'doughnut', data: { labels: twStockList.value.map(s => s.name || s.symbol), datasets: [{ data: twStockList.value.map(s => s.currentPrice * s.shares), backgroundColor: ['#3b82f6', '#2563eb', '#1d4ed8', '#60a5fa', '#93c5fd'] }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { tooltip: tooltipOptions } } }); if (document.getElementById('pieUs') && usStockList.value.length) pieUsInstance = new Chart(document.getElementById('pieUs'), { type: 'doughnut', data: { labels: usStockList.value.map(s => s.name || s.symbol), datasets: [{ data: usStockList.value.map(s => s.currentPrice * s.shares), backgroundColor: ['#ef4444', '#dc2626', '#b91c1c', '#f87171', '#fca5a5'] }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { tooltip: tooltipOptions } } }); };
 
                 const calculateNewAvg = () => { if (transForm.value.type !== 'buy' || !transForm.value.shares || !transForm.value.totalAmount) return transForm.value.currentAvg; const old = transForm.value.currentShares * transForm.value.currentAvg; return (old + transForm.value.totalAmount) / (transForm.value.currentShares + transForm.value.shares); };
@@ -3151,7 +3228,7 @@
                     showModal, isEditing, form, openModal, editStock, closeModal, saveStock, deleteStock,
                     showTransModal, transForm, openTransModal, closeTransModal, submitTransaction, isFundMode, openFundModal,
                     autoFetchName, autoFetchTransName, fetchPrices, formatNumber, formatCurrency, getPnlClass, getRoi, formatChange, getTypeName, getAmountClass, getAmountSign,
-                    chartStartDate, chartEndDate, drawChart, prevDayData, exportData, realizedGains, realizedTotalTw, realizedTotalUs,
+                    chartStartDate, chartEndDate, drawChart, chartPnl, prevDayData, exportData, realizedGains, realizedTotalTw, realizedTotalUs,
                     divRange, divSearchQuery, setDivRange, divStartDate, divEndDate, fetchDividends, dividendRecords, dividendRangeTw, dividendRangeUs,
                     transactionHistory, fetchTransactions, deleteTransaction, deleteDividend, deleteRealized,
                     transStartDate, transEndDate, sortTransaction, sortDividend, sortedTransactions, sortedDividends,
