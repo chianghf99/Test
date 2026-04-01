@@ -2001,7 +2001,7 @@
                                     v-model="transForm.loanId" class="zen-input">
                                     <option value="" disabled>請選擇帳戶</option>
                                     <option v-for="l in loanList" :key="l.id" :value="l.id">
-                                        {{ l.name }}（餘額 {{ formatNumber(l.balance) }}）
+                                        {{ l.name }} (餘額 {{ formatNumber(l.balance) }})
                                     </option>
                                 </select>
 
@@ -2012,7 +2012,7 @@
                                         <i class="fa-solid fa-circle-plus mr-1"></i>建立新借款帳戶
                                     </p>
                                     <input type="text" v-model="inlineLoanName" class="zen-input text-sm"
-                                        placeholder="帳戶名稱（如：玉山信貸、房貸）" />
+                                        placeholder="帳戶名稱 (如: 玉山信貸、房貸)" />
                                     <button @click="saveInlineLoanAccount"
                                         :disabled="!inlineLoanName"
                                         class="w-full py-1.5 text-sm rounded bg-purple-600 hover:bg-purple-700 text-white disabled:opacity-40 transition">
