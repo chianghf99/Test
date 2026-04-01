@@ -1984,12 +1984,41 @@
                     <div class="p-6 space-y-4">
                         <div v-if="isLoanMode">
                             <div>
-                                <label class="block text-xs font-bold text-gray-500 mb-1">選擇借款帳戶</label>
-                                <select v-model="transForm.loanId" class="zen-input">
-                                    <option v-for="l in loanList" :key="l.id" :value="l.id">{{ l.name }} (餘額: {{
-                                        formatNumber(l.balance) }})</option>
+                                <div class="flex items-center justify-between mb-1">
+                                    <label class="text-xs font-bold text-gray-500">借款帳戶</label>
+                                    <button v-if="loanList.length > 0 && !inlineNewLoan"
+                                        @click="inlineNewLoan = true"
+                                        class="text-xs text-purple-500 hover:text-purple-700 flex items-center gap-1">
+                                        <i class="fa-solid fa-plus"></i> 新增帳戶
+                                    </button>
+                                    <button v-if="inlineNewLoan && loanList.length > 0"
+                                        @click="inlineNewLoan = false"
+                                        class="text-xs text-gray-400 hover:text-gray-600">取消</button>
+                                </div>
+
+                                <!-- 現有帳戶下拉 -->
+                                <select v-if="!inlineNewLoan && loanList.length > 0"
+                                    v-model="transForm.loanId" class="zen-input">
+                                    <option value="" disabled>請選擇帳戶</option>
+                                    <option v-for="l in loanList" :key="l.id" :value="l.id">
+                                        {{ l.name }}（餘額 {{ formatNumber(l.balance) }}）
+                                    </option>
                                 </select>
-                                <div v-if="loanList.length===0" class="text-red-500 text-xs mt-1">請先到資金管理頁新增帳戶</div>
+
+                                <!-- Inline 新增帳戶（無帳戶時自動顯示） -->
+                                <div v-if="inlineNewLoan || loanList.length === 0"
+                                    class="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-700 rounded-lg p-3 space-y-2">
+                                    <p class="text-xs text-purple-600 dark:text-purple-300 font-medium">
+                                        <i class="fa-solid fa-circle-plus mr-1"></i>建立新借款帳戶
+                                    </p>
+                                    <input type="text" v-model="inlineLoanName" class="zen-input text-sm"
+                                        placeholder="帳戶名稱（如：玉山信貸、房貸）" />
+                                    <button @click="saveInlineLoanAccount"
+                                        :disabled="!inlineLoanName"
+                                        class="w-full py-1.5 text-sm rounded bg-purple-600 hover:bg-purple-700 text-white disabled:opacity-40 transition">
+                                        建立並選用
+                                    </button>
+                                </div>
                             </div>
                             <div class="mt-2">
                                 <label class="block text-xs font-bold text-gray-500 mb-1">日期</label>
@@ -2182,6 +2211,8 @@
                 const noteForm = ref({ id: null, title: '', date: '', content: '' });
                 const loanList = ref([]);
                 const showLoanMgrModal = ref(false);
+                const inlineNewLoan = ref(false);
+                const inlineLoanName = ref('');
                 const loanForm = ref({ id: null, name: '', balance: 0 });
                 const cashData = ref({ twd: 0, usd: 0, loan: 0 });
                 const prevDayData = ref(null);
@@ -2471,6 +2502,16 @@
                 const editLoanAccount = (l) => { loanForm.value = { ...l }; };
                 const saveLoanAccount = async () => { if (!user.value || !loanForm.value.name) return alert('請輸入名稱'); const data = { name: loanForm.value.name, balance: loanForm.value.balance || 0, currency: 'TWD' }; if (loanForm.value.id) await db.collection('users').doc(user.value.uid).collection('loans').doc(loanForm.value.id).update(data); else await db.collection('users').doc(user.value.uid).collection('loans').add(data); loanForm.value = { id: null, name: '', balance: 0 }; };
                 const deleteLoanAccount = async (l) => { if (!confirm(`確定刪除 ${l.name}？(這不會影響已發生的交易紀錄)`)) return; await db.collection('users').doc(user.value.uid).collection('loans').doc(l.id).delete(); };
+                // Inline 新增帳戶（從到 Modal 內創建，建完自動選中）
+                const saveInlineLoanAccount = async () => {
+                    if (!user.value || !inlineLoanName.value) return;
+                    const data = { name: inlineLoanName.value.trim(), balance: 0, currency: 'TWD' };
+                    const docRef = await db.collection('users').doc(user.value.uid).collection('loans').add(data);
+                    // 建完自動選中此帳戶
+                    transForm.value.loanId = docRef.id;
+                    inlineLoanName.value = '';
+                    inlineNewLoan.value = false;
+                };
                 const openNoteModal = (note) => { if (note) { noteForm.value = { ...note }; } else { noteForm.value = { id: null, title: '', date: getLocalDate(), content: '' }; } showNoteModalVisible.value = true; };
                 const closeNoteModal = () => showNoteModalVisible.value = false;
                 const saveNote = async () => { if (!user.value || !noteForm.value.title) return alert('請輸入標題'); const data = { title: noteForm.value.title, date: noteForm.value.date || getLocalDate(), content: noteForm.value.content || '', timestamp: firebase.firestore.FieldValue.serverTimestamp() }; if (noteForm.value.id) { await db.collection('users').doc(user.value.uid).collection('notes').doc(noteForm.value.id).update(data); } else { await db.collection('users').doc(user.value.uid).collection('notes').add(data); } closeNoteModal(); };
@@ -2573,7 +2614,7 @@
                 const calculateNewAvg = () => { if (transForm.value.type !== 'buy' || !transForm.value.shares || !transForm.value.totalAmount) return transForm.value.currentAvg; const old = transForm.value.currentShares * transForm.value.currentAvg; return (old + transForm.value.totalAmount) / (transForm.value.currentShares + transForm.value.shares); };
                 const openTransModal = (s, type = 'buy') => { repaySource.value = 'internal'; isSyncToCash.value = true; if (s) { transForm.value = { id: s.id, type: 'buy', symbol: s.symbol, name: s.name, shares: '', totalAmount: '', currentShares: s.shares, currentAvg: s.avgCost, date: getLocalDate(), memo: '' }; form.value.currency = s.currency; } else { transForm.value = { id: null, type: type, symbol: '', name: '', shares: '', totalAmount: '', currentShares: 0, currentAvg: 0, date: getLocalDate(), memo: '' }; form.value.currency = 'TWD'; } isFundMode.value = false; isLoanMode.value = false; showTransModal.value = true; };
                 const openFundModal = () => { isFundMode.value = true; isLoanMode.value = false; transForm.value = { id: null, type: 'deposit', symbol: 'CASH', name: '', shares: 0, totalAmount: '', date: getLocalDate(), memo: '' }; form.value.currency = 'TWD'; showTransModal.value = true; };
-                const openLoanModal = () => { isLoanMode.value = true; isFundMode.value = false; isSyncToCash.value = true; transForm.value = { id: null, type: 'borrow', symbol: 'LOAN', name: '', shares: 0, totalAmount: '', date: getLocalDate(), loanId: '', memo: '' }; form.value.currency = 'TWD'; showTransModal.value = true; };
+                const openLoanModal = () => { isLoanMode.value = true; isFundMode.value = false; isSyncToCash.value = true; inlineNewLoan.value = false; inlineLoanName.value = ''; transForm.value = { id: null, type: 'borrow', symbol: 'LOAN', name: '', shares: 0, totalAmount: '', date: getLocalDate(), loanId: '', memo: '' }; form.value.currency = 'TWD'; showTransModal.value = true; };
                 const closeTransModal = () => showTransModal.value = false;
 
                 const submitTransaction = async () => {
@@ -3245,45 +3286,4 @@
                     transactionHistory, fetchTransactions, deleteTransaction, deleteDividend, deleteRealized,
                     transStartDate, transEndDate, sortTransaction, sortDividend, sortedTransactions, sortedDividends,
                     realizedStartDate, realizedEndDate, fetchRealizedGains, cashData,
-                    transFilterType, transSearchQuery, jumpToFundHistory,
-                    showHistoryModal, historyRecords, openHistoryModal, deleteHistoryRecord,
-                    notes, openNoteModal, closeNoteModal, saveNote, deleteNote, showNoteModalVisible, noteForm,
-                    realizedSearchQuery, sortRealized, sortedRealizedGains, realizedGains,
-                    realizedRange, setRealizedRange, currentPage, itemsPerPage, paginatedRealizedGains, totalRealizedPages, changePage,
-                    // v2.9.2
-                    showDeleteModal, pendingDeleteTx, executeDelete,
-                    // v2.9.4
-                    showHistoryEditModalVisible, openHistoryEditModal, saveHistoryRecord, historyEditForm, calculateHistoryNetWorth,
-                    // v2.9.5
-                    loanList, totalLoanBalance, showLoanMgrModal, loanForm, openLoanMgrModal, editLoanAccount, saveLoanAccount, deleteLoanAccount, openLoanModal, isLoanMode, isSyncToCash,
-                    // v2.9.12
-                    exportToExcel,
-                    // v2.9.15
-                    showSettingsModal, defaultPrivacyHidden, saveSettings,
-                    // v2.9.17: Restore
-                    triggerImport, fileInput, handleImport,
-                    // v2.9.18: Chart & History
-                    setChartRange, currentRange, historyFilterYear, availableYears,
-                    // v2.9.20: Stock Notes
-                    openStockNoteModal, showStockNoteModal, stockNoteForm, saveStockNote,
-                    // v3.3.5: XIRR (Index Bug Fix)
-                    xirrValue, xirrStartDate, computeSystemXirr, xirrStartVal, xirrEndVal, xirrFlowCount, repaySource,
-                    // v3.5.0
-                    updateSingleStock, stockStates, loadingTarget,
-                    // v3.6.0
-                    isPriceStale, lastUpdatedTs,
-                    // v3.6.0
-                    fetchStockData, detectMarketType, autoDetectMarketTypes,
-
-                    sectionLoading,
-                    showEditTxModal, editTxForm, openEditTxModal, saveEditTx,
-
-
-                };
-            }
-        }).mount('#app');
-    </script>
-
-</body>
-
-</html>
+       
