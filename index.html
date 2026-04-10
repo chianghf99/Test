@@ -2647,6 +2647,7 @@
                         await new Promise((resolve, reject) => {
                             const picker = new google.picker.PickerBuilder()
                                 .setOAuthToken(accessToken)
+                                .setDeveloperKey(PICKER_API_KEY)
                                 .addView(
                                     new google.picker.DocsView()
                                         .setMimeTypes('application/json')
