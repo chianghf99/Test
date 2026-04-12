@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>我的投資組合 | Portfolio v4.0.1</title>
+    <title>我的投資組合 | Portfolio v4.0.2</title>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>tailwind.config = { darkMode: 'class' }</script>
@@ -298,8 +298,8 @@
                     <i class="fa-solid fa-chart-line"></i>
                 </div>
                 <div>
-                    <h1 class="text-2xl font-bold dark:text-white">資產紀錄帳本 v4.0.1</h1>
-                    <p class="text-gray-500 dark:text-gray-400 text-sm mt-2">v4.0.1 </p>
+                    <h1 class="text-2xl font-bold dark:text-white">資產紀錄帳本 v4.0.2</h1>
+                    <p class="text-gray-500 dark:text-gray-400 text-sm mt-2">v4.0.2 </p>
                 </div>
                 <button @click="login"
                     class="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 font-medium py-2.5 rounded-lg flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-600 transition shadow-sm">
@@ -319,7 +319,7 @@
                         <h1 class="text-lg sm:text-xl font-bold tracking-wide flex items-center gap-2">
                             <span class="hidden sm:inline">我的資產帳本</span>
                             <span @click="showChangelog=true"
-                                class="cursor-pointer bg-gray-100 dark:bg-gray-700 text-xs px-2 py-0.5 rounded text-gray-500 hover:bg-gray-200 transition">v4.0.1</span>
+                                class="cursor-pointer bg-gray-100 dark:bg-gray-700 text-xs px-2 py-0.5 rounded text-gray-500 hover:bg-gray-200 transition">v4.0.2</span>
                         </h1>
                     </div>
                     <div class="flex items-center gap-3">
@@ -1528,6 +1528,13 @@
                                 </div>
                                 <div class="text-xs text-gray-400 mb-1">2026-04-12</div>
                             <div class="border-b border-gray-100 dark:border-gray-700 pb-2">
+                                <div class="font-bold text-gray-800 dark:text-white mb-2">v4.0.2</div>
+                                <ul class="list-disc pl-5 text-sm space-y-1 text-gray-600 dark:text-gray-400">
+                                    <li>修正：修復因底層 HTML 標籤未正確閉合，導致設定按鈕與歷史紀錄彈窗無法顯示的 Bug</li>
+                                </ul>
+                            </div>
+                            
+                            <div class="border-b border-gray-100 dark:border-gray-700 pb-2 mt-4">
                                 <div class="font-bold text-gray-800 dark:text-white mb-2">v4.0.1</div>
                                 <ul class="list-disc pl-5 text-sm space-y-1 text-gray-600 dark:text-gray-400">
                                     <li>更新版面：還原首頁頂部卡片為三大分類，優化視覺動線以避免排版擠壓</li>
