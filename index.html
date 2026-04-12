@@ -550,7 +550,7 @@
                 <transition name="collapse">
                     <div v-if="activeSection === 'chart'" class="zen-card p-4 md:p-6 mb-8 relative">
                         <button @click="openHistoryModal"
-                            class="absolute top-4 right-4 text-xs bg-gray-100 dark:bg-gray-700 text-gray-500 hover:text-gray-800 dark:hover:text-white px-2 py-1 rounded transition"><i
+                            class="absolute top-4 right-4 z-10 cursor-pointer text-xs bg-gray-100 dark:bg-gray-700 text-gray-500 hover:text-gray-800 dark:hover:text-white px-2 py-1 rounded transition"><i
                                 class="fa-solid fa-clock-rotate-left mr-1"></i>維護歷史資料</button>
 
                         <div class="pt-2">
@@ -3003,7 +3003,19 @@
                     debouncedXirr();
                 };
 
-                const openHistoryModal = async () => { if (!user.value) return; showHistoryModal.value = true; const start = `${historyFilterYear.value}-01-01`; const end = `${historyFilterYear.value}-12-31`; const snap = await db.collection('users').doc(user.value.uid).collection('history').where('date', '>=', start).where('date', '<=', end).orderBy('date', 'desc').get(); historyRecords.value = snap.docs.map(d => ({ id: d.id, ...d.data() })); };
+                const openHistoryModal = async () => { 
+                    if (!user.value) return; 
+                    showHistoryModal.value = true; 
+                    try {
+                        const start = `${historyFilterYear.value}-01-01`; 
+                        const end = `${historyFilterYear.value}-12-31`; 
+                        const snap = await db.collection('users').doc(user.value.uid).collection('history').where('date', '>=', start).where('date', '<=', end).orderBy('date', 'desc').get(); 
+                        historyRecords.value = snap.docs.map(d => ({ id: d.id, ...d.data() })); 
+                    } catch(err) {
+                        console.error('History fetch error:', err);
+                        alert('載入歷史資料失敗：' + err.message);
+                    }
+                };
                 const deleteHistoryRecord = async (date) => { if (!confirm(`確定要刪除 ${date} 的歷史紀錄嗎？`)) return; await db.collection('users').doc(user.value.uid).collection('history').doc(date).delete(); await openHistoryModal(); drawChart(); debouncedXirr(); };
                 const openHistoryEditModal = (rec) => { historyEditForm.value = { date: rec.date, twVal: rec.twVal || 0, usVal: rec.usVal || 0, twCash: rec.twCash || 0, usCash: rec.usCash || 0, loan: rec.loan || 0 }; showHistoryEditModalVisible.value = true; };
                 const calculateHistoryNetWorth = () => { const asset = (historyEditForm.value.twVal || 0) + (historyEditForm.value.twCash || 0) + ((historyEditForm.value.usVal || 0) + (historyEditForm.value.usCash || 0)) * exchangeRate.value; const loan = historyEditForm.value.loan || 0; return asset - loan; };
