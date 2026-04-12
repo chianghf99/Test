@@ -1545,6 +1545,7 @@
                                     <li>可連結現有借款帳戶作為房貸追蹤</li>
                                 </ul>
                             </div>
+                        </div>
                             <div class="relative pl-6">
                                 <div
                                     class="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-blue-500 dark:bg-blue-400 border-2 border-white dark:border-gray-800">
@@ -1711,6 +1712,7 @@
                         </div>
                     </div>
                 </div>
+            </div>
             </div>
 
             <div v-if="showSettingsModal"
@@ -2002,11 +2004,50 @@
                 </div>
             </div>
             <div v-if="showHistoryModal"
-                class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4 text-white">
-                <div class="bg-gray-800 p-8 rounded-xl shadow-xl z-[10000]">
-                    <h2 class="text-xl mb-4">這是一個測試畫面</h2>
-                    <p>如果能看到這個畫面，代表原本的歷史紀錄 HTML 結構有某個變數或語法讓 Vue 給當機了！</p>
-                    <button @click="showHistoryModal=false" class="mt-4 bg-red-500 px-4 py-2 rounded text-white">關閉</button>
+                class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                <div
+                    class="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-sm overflow-hidden flex flex-col max-h-[80vh]">
+                    <div class="bg-gray-800 dark:bg-gray-900 text-white px-6 py-4 flex justify-between items-center">
+                        <div class="flex items-center gap-2">
+                            <h3 class="font-bold">歷史紀錄</h3><select v-model="historyFilterYear"
+                                @change="openHistoryModal"
+                                class="text-gray-800 text-xs px-2 py-1 rounded border-none focus:ring-0 cursor-pointer">
+                                <option v-for="y in availableYears" :key="y" :value="y">{{ y }}年</option>
+                            </select>
+                        </div><button @click="showHistoryModal=false" class="text-gray-300 hover:text-white"><i
+                                class="fa-solid fa-times"></i></button>
+                    </div>
+                    <div class="p-0 overflow-y-auto flex-grow custom-scrollbar">
+                        <table class="w-full text-sm text-left">
+                            <thead
+                                class="bg-gray-100 dark:bg-gray-700 text-gray-500 uppercase font-medium sticky top-0">
+                                <tr>
+                                    <th class="px-6 py-3">日期</th>
+                                    <th class="px-6 py-3 text-right">淨資產</th>
+                                    <th class="px-6 py-3 text-center">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+                                <tr v-for="rec in historyRecords" :key="rec.id"
+                                    class="hover:bg-gray-50 dark:hover:bg-gray-800">
+                                    <td class="px-6 py-3 font-medium">{{ rec.date }}</td>
+                                    <td class="px-6 py-3 text-right font-bold">{{ formatCurrency((rec.totalVal || 0),
+                                        'TWD') }}</td>
+                                    <td class="px-6 py-3 text-center"><button @click="openHistoryEditModal(rec)"
+                                            class="text-gray-400 hover:text-blue-500 mx-2"><i
+                                                class="fa-solid fa-pen"></i></button><button
+                                            @click="deleteHistoryRecord(rec.date)"
+                                            class="text-gray-400 hover:text-red-500 mx-2"><i
+                                                class="fa-solid fa-trash-can"></i></button></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <div v-if="historyRecords.length === 0" class="text-center py-8 text-gray-400">尚無 {{
+                            historyFilterYear }} 年紀錄</div>
+                    </div>
+                    <div
+                        class="bg-gray-50 dark:bg-gray-700 px-6 py-4 text-xs text-gray-500 dark:text-gray-400 text-center">
+                        刪除後圖表將自動重繪</div>
                 </div>
             </div>
             <div v-if="showHistoryEditModalVisible"
