@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>我的投資組合 | Portfolio v4.0.0</title>
+    <title>我的投資組合 | Portfolio v4.0.1</title>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>tailwind.config = { darkMode: 'class' }</script>
@@ -298,8 +298,8 @@
                     <i class="fa-solid fa-chart-line"></i>
                 </div>
                 <div>
-                    <h1 class="text-2xl font-bold dark:text-white">資產紀錄帳本 v4.0.0</h1>
-                    <p class="text-gray-500 dark:text-gray-400 text-sm mt-2">v4.0.0 </p>
+                    <h1 class="text-2xl font-bold dark:text-white">資產紀錄帳本 v4.0.1</h1>
+                    <p class="text-gray-500 dark:text-gray-400 text-sm mt-2">v4.0.1 </p>
                 </div>
                 <button @click="login"
                     class="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 font-medium py-2.5 rounded-lg flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-600 transition shadow-sm">
@@ -319,7 +319,7 @@
                         <h1 class="text-lg sm:text-xl font-bold tracking-wide flex items-center gap-2">
                             <span class="hidden sm:inline">我的資產帳本</span>
                             <span @click="showChangelog=true"
-                                class="cursor-pointer bg-gray-100 dark:bg-gray-700 text-xs px-2 py-0.5 rounded text-gray-500 hover:bg-gray-200 transition">v4.0.0</span>
+                                class="cursor-pointer bg-gray-100 dark:bg-gray-700 text-xs px-2 py-0.5 rounded text-gray-500 hover:bg-gray-200 transition">v4.0.1</span>
                         </h1>
                     </div>
                     <div class="flex items-center gap-3">
@@ -369,7 +369,7 @@
             </nav>
 
             <div class="max-w-6xl mx-auto px-4 mt-6">
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                     <!-- Card 1: 淨資產 -->
                     <div class="zen-card p-5 border-l-4 border-gray-800 dark:border-gray-500">
                         <div class="flex justify-between items-center mb-1">
@@ -506,34 +506,6 @@
                                 <span v-if="showPrivacy" :class="getPnlClass(usStats.pnl)">{{
                                     formatCurrency(usStats.pnl, 'USD') }}<span class="text-xs ml-1">({{
                                         getRoi(usStats.cost, usStats.pnl) }})</span></span>
-                                <span v-else class="text-gray-300 dark:text-gray-600">****</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Card 4: 不動產 (v4.0.0) -->
-                    <div class="zen-card p-5 border-l-4 border-emerald-600 dark:border-emerald-500">
-                        <div class="flex justify-between items-center mb-1">
-                            <div class="text-sm text-gray-500 dark:text-gray-400">不動產</div>
-                            <i class="fa-solid fa-house text-emerald-600 dark:text-emerald-400"></i>
-                        </div>
-                        <div class="text-2xl font-bold dark:text-white"><span v-if="showPrivacy">{{ formatCurrency(realEstateNetValue, 'TWD') }}</span><span v-else>****</span></div>
-                        <div class="mt-1 text-xs text-gray-400" v-if="showPrivacy">{{ realEstateList.length }} 筆房產</div>
-                        <div v-else class="mt-1 text-xs text-gray-300">****</div>
-                        <div class="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700 space-y-1">
-                            <div class="flex justify-between text-sm">
-                                <span class="text-gray-500 dark:text-gray-400">估計市值</span>
-                                <span v-if="showPrivacy" class="text-gray-700 dark:text-gray-200 font-medium">{{ formatCurrency(realEstateTotalMarket, 'TWD') }}</span>
-                                <span v-else class="text-gray-300 dark:text-gray-600">****</span>
-                            </div>
-                            <div class="flex justify-between text-sm">
-                                <span class="text-gray-500 dark:text-gray-400">對應房貸</span>
-                                <span v-if="showPrivacy" class="text-red-500 dark:text-red-400">-{{ formatCurrency(realEstateTotalMortgage, 'TWD') }}</span>
-                                <span v-else class="text-gray-300 dark:text-gray-600">****</span>
-                            </div>
-                            <div class="flex justify-between text-sm">
-                                <span class="text-gray-500 dark:text-gray-400">帳面損益</span>
-                                <span v-if="showPrivacy" :class="getPnlClass(realEstateBookPnL)">{{ formatCurrency(realEstateBookPnL, 'TWD') }}</span>
                                 <span v-else class="text-gray-300 dark:text-gray-600">****</span>
                             </div>
                         </div>
@@ -1555,6 +1527,16 @@
                                     class="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-emerald-500 dark:bg-emerald-400 border-2 border-white dark:border-gray-800">
                                 </div>
                                 <div class="text-xs text-gray-400 mb-1">2026-04-12</div>
+                            <div class="border-b border-gray-100 dark:border-gray-700 pb-2">
+                                <div class="font-bold text-gray-800 dark:text-white mb-2">v4.0.1</div>
+                                <ul class="list-disc pl-5 text-sm space-y-1 text-gray-600 dark:text-gray-400">
+                                    <li>更新版面：還原首頁頂部卡片為三大分類，優化視覺動線以避免排版擠壓</li>
+                                    <li>功能優化：房地產設定更新為支援涵蓋多筆借款帳戶</li>
+                                    <li>修正：修復資產走勢圖未能包含不動產淨值的問題</li>
+                                </ul>
+                            </div>
+                            
+                            <div class="border-b border-gray-100 dark:border-gray-700 pb-2 mt-4">
                                 <div class="font-bold text-gray-800 dark:text-white mb-2">v4.0.0</div>
                                 <ul class="text-sm text-gray-600 dark:text-gray-300 space-y-1 list-disc list-inside">
                                     <li>新增「不動產管理」模組，支援多筆房產記錄</li>
@@ -3096,7 +3078,7 @@
 
                     // 計算期間損益
                     const calcNetWorth = x => {
-                        const asset = (x.twVal || 0) + (x.twCash || 0) + ((x.usVal || 0) + (x.usCash || 0)) * exchangeRate.value;
+                        const asset = (x.twVal || 0) + (x.twCash || 0) + ((x.usVal || 0) + (x.usCash || 0)) * exchangeRate.value + (x.realestate || 0);
                         return asset - (x.loan || 0);
                     };
                     if (d.length >= 2) {
