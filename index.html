@@ -3004,14 +3004,16 @@
                 };
 
                 const openHistoryModal = async () => { 
-                    alert('按鈕點擊有觸發到函式！');
+                    alert('1. Button clicked, user: ' + (user.value ? 'exists' : 'null'));
                     if (!user.value) return; 
                     showHistoryModal.value = true; 
                     try {
                         const start = `${historyFilterYear.value}-01-01`; 
                         const end = `${historyFilterYear.value}-12-31`; 
+                        alert(`2. Fetching history from ${start} to ${end}`);
                         const snap = await db.collection('users').doc(user.value.uid).collection('history').where('date', '>=', start).where('date', '<=', end).orderBy('date', 'desc').get(); 
                         historyRecords.value = snap.docs.map(d => ({ id: d.id, ...d.data() })); 
+                        alert('3. History fetched, records: ' + historyRecords.value.length);
                     } catch(err) {
                         console.error('History fetch error:', err);
                         alert('載入歷史資料失敗：' + err.message);
