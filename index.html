@@ -2516,6 +2516,10 @@
                                 <span class="text-gray-500 dark:text-gray-400">區間年化報酬 (XIRR)</span>
                                 <span class="font-bold text-lg" :class="getPnlClass(cxXirrValue)">{{ cxXirrValue }}%</span>
                             </div>
+                            <div v-if="cxDays < 90" class="text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 rounded p-2 flex items-start gap-1">
+                                <i class="fa-solid fa-triangle-exclamation mt-0.5 flex-shrink-0"></i>
+                                <span>區間僅 {{ cxDays }} 天，XIRR 為年化數字，短期波動會使結果嚴重失真，僅供參考。</span>
+                            </div>
                             <div class="border-t border-gray-200 dark:border-gray-600 my-2 pt-2 space-y-1">
                                 <div class="flex justify-between text-xs">
                                     <span class="text-gray-500 dark:text-gray-400">期初總資產 ({{ cxRealStartDate }})</span>
@@ -3488,6 +3492,7 @@
 
                 // --- 新增：特定區間 XIRR ---
                 const showCustomXirrModal = ref(false);
+                const cxDays = ref(0);
                 const cxStartDate = ref('');
                 const cxEndDate = ref('');
                 const cxRealStartDate = ref('');
@@ -3535,6 +3540,7 @@
                         
                         cxStartGross.value = startBase;
                         cxRealStartDate.value = realStartDate;
+                        cxDays.value = 0; // reset
                         
                         let endBase = 0;
                         let realEndDate = cxEndDate.value;
@@ -3555,6 +3561,10 @@
                         }
                         cxEndGross.value = endBase;
                         cxRealEndDate.value = realEndDate;
+                        // 計算實際天數
+                        const startD = parseDate(realStartDate);
+                        const endD = realEndDate === '今日即時' ? new Date() : parseDate(realEndDate);
+                        cxDays.value = Math.round((endD - startD) / (1000 * 60 * 60 * 24));
                         
                         const txSnap = await db.collection('users').doc(user.value.uid).collection('transactions')
                             .where('date', '>', realStartDate)
@@ -4099,7 +4109,7 @@
 
                      // 區間績效分析器
                      showCustomXirrModal, openCustomXirrModal, calculateCustomXirr,
-                     cxStartDate, cxEndDate, cxLoading, cxXirrValue,
+                     cxStartDate, cxEndDate, cxLoading, cxXirrValue, cxDays,
                      cxRealStartDate, cxRealEndDate, cxStartGross, cxEndGross, cxInflow, cxOutflow,
 
                 };
