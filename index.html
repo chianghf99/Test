@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>我的投資組合 | Portfolio v4.1.0</title>
+    <title>我的投資組合 | Portfolio v4.1.1</title>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>tailwind.config = { darkMode: 'class' }</script>
@@ -298,8 +298,8 @@
                     <i class="fa-solid fa-chart-line"></i>
                 </div>
                 <div>
-                    <h1 class="text-2xl font-bold dark:text-white">資產紀錄帳本 v4.1.0</h1>
-                    <p class="text-gray-500 dark:text-gray-400 text-sm mt-2">v4.1.0 </p>
+                    <h1 class="text-2xl font-bold dark:text-white">資產紀錄帳本 v4.1.1</h1>
+                    <p class="text-gray-500 dark:text-gray-400 text-sm mt-2">v4.1.1 </p>
                 </div>
                 <button @click="login"
                     class="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 font-medium py-2.5 rounded-lg flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-600 transition shadow-sm">
@@ -319,7 +319,7 @@
                         <h1 class="text-lg sm:text-xl font-bold tracking-wide flex items-center gap-2">
                             <span class="hidden sm:inline">我的資產帳本</span>
                             <span @click="showChangelog=true"
-                                class="cursor-pointer bg-gray-100 dark:bg-gray-700 text-xs px-2 py-0.5 rounded text-gray-500 hover:bg-gray-200 transition">v4.1.0</span>
+                                class="cursor-pointer bg-gray-100 dark:bg-gray-700 text-xs px-2 py-0.5 rounded text-gray-500 hover:bg-gray-200 transition">v4.1.1</span>
                         </h1>
                     </div>
                     <div class="flex items-center gap-3">
@@ -404,6 +404,7 @@
                                         getRoi(grandTotalValue - grandTotalPnL, grandTotalPnL) }})</span></span>
                                 <span v-else class="text-gray-300 dark:text-gray-600">****</span>
                             </div>
+                            <!-- XIRR 暫時隱藏（數值因時間過短失真）
                             <div class="flex justify-between text-xs items-center">
                                 <div class="text-gray-400 group relative cursor-help">
                                     年化報酬率 (XIRR) <i class="fa-regular fa-circle-question ml-0.5"></i>
@@ -422,12 +423,12 @@
                                     xirrValue }}%</span>
                                 <span v-else class="text-gray-300 dark:text-gray-600">****</span>
                             </div>
-                            <!-- 新增：區間試算按鈕 -->
                             <div class="mt-2 text-right">
                                 <button @click="openCustomXirrModal" class="text-xs text-purple-600 dark:text-purple-400 hover:underline">
                                     <i class="fa-solid fa-calculator"></i> 區間試算
                                 </button>
                             </div>
+                            -->
                         </div>
                     </div>
 
@@ -1536,8 +1537,17 @@
                                 <div
                                     class="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-emerald-500 dark:bg-emerald-400 border-2 border-white dark:border-gray-800">
                                 </div>
-                                <div class="text-xs text-gray-400 mb-1">2026-04-18</div>
+                                <div class="text-xs text-gray-400 mb-1">2026-04-24</div>
                             <div class="border-b border-gray-100 dark:border-gray-700 pb-2">
+                                <div class="font-bold text-gray-800 dark:text-white mb-2">v4.1.1</div>
+                                <ul class="list-disc pl-5 text-sm space-y-1 text-gray-600 dark:text-gray-400">
+                                    <li>修復：美股代號包含小數點或短橫線（如 BRK.B）時，無法正確識別為美股的問題。</li>
+                                    <li>優化：調降美股批次更新頻率，避免觸發 API 速率限制而更新失敗。</li>
+                                    <li>優化：改善首頁房地產貸款總額的計算效能。</li>
+                                </ul>
+                            </div>
+                            <div class="border-b border-gray-100 dark:border-gray-700 pb-2 mt-4">
+                                <div class="text-xs text-gray-400 mb-1">2026-04-18</div>
                                 <div class="font-bold text-gray-800 dark:text-white mb-2">v4.1.0</div>
                                 <ul class="list-disc pl-5 text-sm space-y-1 text-gray-600 dark:text-gray-400">
                                     <li>新增：全新「區間績效分析器」工具。現可於首頁 XIRR 旁點按「區間試算」，自訂起訖日期以獲取該時段的精確投資報酬率。</li>
@@ -2743,12 +2753,11 @@
                 // v4.0.0: 房地產 computed
                 const realEstateTotalMarket = computed(() => realEstateList.value.reduce((acc, re) => acc + (re.marketValue || 0), 0));
                 const realEstateTotalMortgage = computed(() => {
+                    const loanMap = {};
+                    loanList.value.forEach(l => { loanMap[l.id] = l.balance || 0; });
                     return realEstateList.value.reduce((acc, re) => {
                         const ids = re.mortgageLoanIds || (re.mortgageLoanId ? [re.mortgageLoanId] : []);
-                        const sum = ids.reduce((s, id) => {
-                            const loan = loanList.value.find(l => l.id === id);
-                            return s + (loan ? (loan.balance || 0) : 0);
-                        }, 0);
+                        const sum = ids.reduce((s, id) => s + (loanMap[id] || 0), 0);
                         return acc + sum;
                     }, 0);
                 });
@@ -3879,8 +3888,8 @@
                     } catch (e) { /* silent */ }
                     return null;
                 };
-                const autoFetchName = async () => { const s = form.value.symbol; if (!s) return; if (/^\d/.test(s)) { form.value.currency = 'TWD'; } else if (/^[A-Za-z]+$/.test(s)) { form.value.currency = 'USD'; form.value.marketType = 'us'; } if (!form.value.name) form.value.name = '查詢中...'; const d = await getYahooData(s); if (d) { if (form.value.name === '查詢中...') form.value.name = d.name || d.symbol; form.value.currentPrice = d.regularMarketPrice; form.value.previousClose = d.previousClose; } else { if (form.value.name === '查詢中...') form.value.name = ''; alert('查無代號'); } };
-                const autoFetchTransName = async () => { const s = transForm.value.symbol; if (!s) return; const localStock = stocks.value.find(st => st.symbol && st.symbol.toUpperCase() === s.toUpperCase()); if (localStock) { transForm.value.name = localStock.name; form.value.currency = localStock.currency; return; } if (/^\d/.test(s)) form.value.currency = 'TWD'; else if (/^[A-Za-z]+$/.test(s)) form.value.currency = 'USD'; if (!transForm.value.name) transForm.value.name = '查詢中...'; const d = await getYahooData(s); if (d) { if (transForm.value.name === '查詢中...') transForm.value.name = d.name || d.symbol; } else { if (transForm.value.name === '查詢中...') transForm.value.name = ''; } };
+                const autoFetchName = async () => { const s = form.value.symbol; if (!s) return; if (/^\d/.test(s)) { form.value.currency = 'TWD'; } else if (/^[A-Za-z\.-]+$/.test(s)) { form.value.currency = 'USD'; form.value.marketType = 'us'; } if (!form.value.name) form.value.name = '查詢中...'; const d = await getYahooData(s); if (d) { if (form.value.name === '查詢中...') form.value.name = d.name || d.symbol; form.value.currentPrice = d.regularMarketPrice; form.value.previousClose = d.previousClose; } else { if (form.value.name === '查詢中...') form.value.name = ''; alert('查無代號'); } };
+                const autoFetchTransName = async () => { const s = transForm.value.symbol; if (!s) return; const localStock = stocks.value.find(st => st.symbol && st.symbol.toUpperCase() === s.toUpperCase()); if (localStock) { transForm.value.name = localStock.name; form.value.currency = localStock.currency; return; } if (/^\d/.test(s)) form.value.currency = 'TWD'; else if (/^[A-Za-z\.-]+$/.test(s)) form.value.currency = 'USD'; if (!transForm.value.name) transForm.value.name = '查詢中...'; const d = await getYahooData(s); if (d) { if (transForm.value.name === '查詢中...') transForm.value.name = d.name || d.symbol; } else { if (transForm.value.name === '查詢中...') transForm.value.name = ''; } };
                 // [主程式] 批次更新股價 (支援分流 + 必定更新匯率)
                 const fetchPrices = async (marketType) => {
                     // 基本檢查
@@ -3952,7 +3961,7 @@
 
                     // 台股：快照已預載，迴圈純 lookup（可大並行）；美股：Finnhub 60 req/min
                     const CONCURRENT_LIMIT = marketType === 'US' ? 3 : 10;
-                    const BATCH_DELAY = marketType === 'US' ? 1200 : 0;
+                    const BATCH_DELAY = marketType === 'US' ? 3050 : 0;
 
                     for (let i = 0; i < targetStocks.length; i += CONCURRENT_LIMIT) {
                         const batchStocks = targetStocks.slice(i, i + CONCURRENT_LIMIT);
