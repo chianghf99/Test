@@ -1396,7 +1396,7 @@ const { createApp, ref, computed, onMounted, watch } = Vue;
 
                 return {
                     clearAllUserData, // v3.2.1
-                    user, login, logout, stocks, exchangeRate, lastUpdated, isLoading, viewMode, isMobile, showPrivacy, isDarkMode, toggleDarkMode, activeSection, toggleSection, showChangelog,
+                    user, login, logout, stocks, exchangeRate, lastUpdated, isLoading, viewMode, isMobile, showPrivacy, isDarkMode, toggleDarkMode, activeSection, toggleSection, showChangelog, hideZeroShares, defaultPrivacyHidden,
                     twStats, usStats, grandTotalValue, grandTotalAssets, grandTotalPnL, twStockList, usStockList,
                     showModal, isEditing, form, openModal, editStock, closeModal, saveStock, deleteStock,
                     showTransModal, transForm, openTransModal, closeTransModal, submitTransaction, isFundMode, openFundModal,
