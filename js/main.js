@@ -1,117 +1,21 @@
 import { db, auth } from './firebase-config.js';
 import { getLocalDate, formatNumber, formatCurrency, getPnlClass, getRoi, formatChange, getTypeName, getAmountSign } from './utils/format.js';
 
+import { user, stocks, exchangeRate, lastUpdated, lastUpdatedTs, loadingTarget, isLoading, viewMode, isMobile, showPrivacy, defaultPrivacyHidden, showSettingsModal, isDarkMode, activeSection, showChangelog, stockStates, sectionLoading, xirrValue, xirrStartDate, xirrStartVal, xirrEndVal, xirrFlowCount, showStockNoteModal, stockNoteForm, showHistoryModal, historyRecords, historyFilterYear, availableYears, showDeleteModal, pendingDeleteTx, showEditTxModal, editTxForm, showHistoryEditModalVisible, historyEditForm, notes, showNoteModalVisible, noteForm, loanList, showLoanMgrModal, inlineNewLoan, inlineLoanName, loanForm, cashData, prevDayData, realEstateList, showRealEstateModal, realEstateForm, chartStartDate, chartEndDate, chartPnl, currentRange, divRange, divSearchQuery, divStartDate, divEndDate, realizedStartDate, realizedEndDate, transStartDate, transEndDate, transFilterType, transSearchQuery, sortKeyTrans, sortOrderTrans, sortKeyDiv, sortOrderDiv, realizedGains, realizedSearchQuery, sortKeyRealized, sortOrderRealized, realizedRange, currentPage, itemsPerPage, dividendRecords, transactionHistory, showModal, isEditing, form, showTransModal, isFundMode, isLoanMode, loanCashMode, transForm, isPriceStale } from './store/index.js';
 const { createApp, ref, computed, onMounted, watch } = Vue;
 
         createApp({
             setup() {
                 // --- 1. 變數定義區 ---
-                const user = ref(null);
-                const stocks = ref([]);
-                const exchangeRate = ref(32.5);
-                const lastUpdated = ref('-');
-                const lastUpdatedTs = ref(0); // Unix ms timestamp for stale detection
-                const isPriceStale = computed(() => {
-                    if (!lastUpdatedTs.value) return false;
-                    const mins = (Date.now() - lastUpdatedTs.value) / 60000;
-                    const h = new Date().getHours();
-                    // 台股交易時段(9-13:30)，超過 30 分鐘才算過期
-                    if (h >= 9 && h < 14) return mins > 30;
-                    return false;
-                });
-                const loadingTarget = ref(null);
-                const isLoading = computed(() => loadingTarget.value !== null);
-                const viewMode = ref('auto');
-                const isMobile = ref(window.innerWidth < 768);
-                const showPrivacy = ref(false);
-                const defaultPrivacyHidden = ref(false);
-                const showSettingsModal = ref(false);
-                const isDarkMode = ref(localStorage.getItem('darkMode') === 'true');
-                const activeSection = ref('');
-                const showChangelog = ref(false);
-                const stockStates = ref({});
-                const sectionLoading = ref(false); // v3.6.0: per-section loading state
-
-                // XIRR 變數
-                const xirrValue = ref(0.0);
-                const xirrStartDate = ref('-');
-                const xirrStartVal = ref(0);
-                const xirrEndVal = ref(0);
-                const xirrFlowCount = ref(0);
-
-                // Stock Notes
-                const showStockNoteModal = ref(false);
-                const stockNoteForm = ref({ id: '', symbol: '', name: '', content: '' });
-
-                // History
-                const showHistoryModal = ref(false);
-                const historyRecords = ref([]);
-                const historyFilterYear = ref(new Date().getFullYear());
-                const availableYears = ref([]);
-
-                const showDeleteModal = ref(false);
-                const pendingDeleteTx = ref(null);
-                // v3.6.0: Transaction edit
-                const showEditTxModal = ref(false);
-                const editTxForm = ref({ id: null, date: '', name: '', memo: '' });
-                const showHistoryEditModalVisible = ref(false);
-                const historyEditForm = ref({ date: '', twVal: 0, usVal: 0, twCash: 0, usCash: 0, loan: 0, realestate: 0 });
-                const notes = ref([]);
-                const showNoteModalVisible = ref(false);
-                const noteForm = ref({ id: null, title: '', date: '', content: '' });
-                const loanList = ref([]);
-                const showLoanMgrModal = ref(false);
-                const inlineNewLoan = ref(false);
-                const inlineLoanName = ref('');
-                const loanForm = ref({ id: null, name: '', balance: 0 });
-                const cashData = ref({ twd: 0, usd: 0, loan: 0 });
-                const prevDayData = ref(null);
-
-                // v4.0.0: 房地產
-                const realEstateList = ref([]);
-                const showRealEstateModal = ref(false);
-                const realEstateForm = ref({ id: null, name: '', address: '', purchaseDate: '', purchaseCost: 0, marketValue: 0, mortgageLoanIds: [], note: '' });
                 let unsubscribeRealEstate = null;
-
-                // getLocalDate imported from utils
-
                 const fileInput = ref(null);
-
-                const chartStartDate = ref(''); const chartEndDate = ref('');
-                const chartPnl = ref({ amount: null, pct: null, startVal: null, endVal: null });
-                const currentRange = ref('1M');
-                const divRange = ref('YTD');
-                const divSearchQuery = ref('');
-                const divStartDate = ref(''); const divEndDate = ref('');
-                const realizedStartDate = ref(''); const realizedEndDate = ref('');
-                const transStartDate = ref(''); const transEndDate = ref('');
-                const transFilterType = ref('all'); const transSearchQuery = ref('');
-                const sortKeyTrans = ref('date'); const sortOrderTrans = ref('desc');
-                const sortKeyDiv = ref('date'); const sortOrderDiv = ref('desc');
-
                 let chartInstance = null, pieTwInstance = null, pieUsInstance = null;
-
-                const realizedGains = ref([]);
-                const realizedSearchQuery = ref('');
-                const sortKeyRealized = ref('date');
-                const sortOrderRealized = ref('desc');
-                const realizedRange = ref('YTD');
-                const currentPage = ref(1);
-                const itemsPerPage = ref(10);
-
-                const dividendRecords = ref([]);
-                const transactionHistory = ref([]);
                 let unsubscribe = null, unsubscribeTrans = null, unsubscribeCash = null, unsubscribeNotes = null, unsubscribeLoans = null;
-
-                const showModal = ref(false); const isEditing = ref(false);
-                const form = ref({ id: null, symbol: '', name: '', currency: 'TWD', shares: 0, avgCost: 0, totalCostInput: 0, currentPrice: 0, dividends: 0, previousClose: 0 });
-                const showTransModal = ref(false); const isFundMode = ref(false); const isLoanMode = ref(false); const loanCashMode = ref('sync'); // v3.7.3: 'sync' | 'nosync'
-                const transForm = ref({ id: null, type: 'buy', symbol: '', name: '', shares: '', totalAmount: '', currentShares: 0, currentAvg: 0, date: getLocalDate(), loanId: '', memo: '' });
-
+                
                 if (isDarkMode.value) document.documentElement.classList.add('dark');
                 window.addEventListener('resize', () => isMobile.value = window.innerWidth < 768);
 
-                // --- 2. 初始化與監聽 ---
+                                // --- 2. 初始化與監聽 ---
                 onMounted(() => {
                     const savedPrivacySetting = localStorage.getItem('app_default_privacy_hidden');
                     if (savedPrivacySetting === 'true') { defaultPrivacyHidden.value = true; showPrivacy.value = false; }
