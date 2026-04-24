@@ -1,18 +1,7 @@
-        const { createApp, ref, computed, onMounted, watch } = Vue;
+import { db, auth } from './firebase-config.js';
+import { getLocalDate, formatNumber, formatCurrency, getPnlClass, getRoi, formatChange, getTypeName, getAmountSign } from './utils/format.js';
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyAh94_Z-wA_riNIXmn_btCXbTtaZny1CQg",
-            authDomain: "stock-portfolio-df6dd.firebaseapp.com",
-            projectId: "stock-portfolio-df6dd",
-            storageBucket: "stock-portfolio-df6dd.firebasestorage.app",
-            messagingSenderId: "753606247346",
-            appId: "1:753606247346:web:af0d0460327afb40f31aab",
-            measurementId: "G-TGV1QF9QBG"
-        };
-
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
-        const auth = firebase.auth();
+const { createApp, ref, computed, onMounted, watch } = Vue;
 
         createApp({
             setup() {
@@ -84,7 +73,7 @@
                 const realEstateForm = ref({ id: null, name: '', address: '', purchaseDate: '', purchaseCost: 0, marketValue: 0, mortgageLoanIds: [], note: '' });
                 let unsubscribeRealEstate = null;
 
-                const getLocalDate = () => { const d = new Date(); const offset = d.getTimezoneOffset() * 60000; return new Date(d.getTime() - offset).toISOString().split('T')[0]; };
+                // getLocalDate imported from utils
 
                 const fileInput = ref(null);
 
@@ -1491,14 +1480,9 @@
                 const sortDividend = (key) => { if (sortKeyDiv.value === key) sortOrderDiv.value = sortOrderDiv.value === 'asc' ? 'desc' : 'asc'; else { sortKeyDiv.value = key; sortOrderDiv.value = 'desc'; } };
 
                 function calculateStats(subset) { let v = 0, c = 0, d = 0; subset.forEach(s => { v += s.currentPrice * s.shares; c += s.avgCost * s.shares; d += (s.dividends || 0); }); return { value: v, cost: c, dividend: d, pnl: v - c }; }
-                const formatNumber = (n) => !n && n !== 0 ? '-' : new Intl.NumberFormat('en-US', { maximumFractionDigits: 5 }).format(n);
-                const formatCurrency = (n, c) => { return (c === 'TWD' ? 'NT$ ' : '$ ') + new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n); };
-                const getPnlClass = (v) => v >= 0 ? 'text-up' : 'text-down';
-                const getRoi = (c, p) => c === 0 ? '0%' : (p > 0 ? '+' : '') + (p / c * 100).toFixed(2) + '%';
-                const formatChange = (diff, prev) => { const pct = (diff / prev) * 100; return (diff > 0 ? '+' : '') + diff.toFixed(2) + ' (' + (pct > 0 ? '+' : '') + pct.toFixed(2) + '%)'; };
-                const getTypeName = (type) => { if (type === 'buy') return '買入'; if (type === 'sell') return '賣出'; if (type === 'dividend') return '領息'; if (type === 'deposit') return '入金'; if (type === 'withdraw') return '出金'; if (type === 'borrow') return '借款'; if (type === 'repay') return '還款'; return type; };
+                // Formatting functions imported from utils
                 const getAmountClass = (tx) => { if (tx.type === 'buy' || tx.type === 'withdraw' || tx.type === 'repay') return ''; if (tx.type === 'sell' || tx.type === 'dividend' || tx.type === 'deposit' || tx.type === 'borrow') return isDarkMode.value ? 'text-yellow-400' : 'text-yellow-600'; return ''; };
-                const getAmountSign = (tx) => { if (tx.type === 'buy' || tx.type === 'withdraw' || tx.type === 'repay') return '-'; return '+'; };
+                // getAmountSign imported from utils
 
                 return {
                     clearAllUserData, // v3.2.1
